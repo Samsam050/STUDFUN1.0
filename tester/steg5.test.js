@@ -148,7 +148,7 @@ test("förklara ett ord i läsläget sparas inte i samtalet", async () => {
   const fore = (await s.anrop("GET", `/api/kurser/${kursA}/meddelanden`, { kaka: a })).json.meddelanden.length;
   const r = await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: a, data: { ord: "anbud", mening: "Ett anbud gäller en viss tid.", typ: "forklara", sida: { dokId: dokA, nr: 1 } } });
   assert.equal(r.status, 200);
-  assert.ok(r.json.kallor.length >= 1);
+  assert.equal(typeof r.json.svar, "string");
   assert.equal((await s.anrop("GET", `/api/kurser/${kursA}/meddelanden`, { kaka: a })).json.meddelanden.length, fore);
   assert.equal((await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: a, data: { ord: "anbud", mening: "x", typ: "radera" } })).status, 400);
 });

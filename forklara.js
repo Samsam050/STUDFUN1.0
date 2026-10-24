@@ -1,5 +1,5 @@
 /*
-  Förklara den här sidan, och knapparna för att få samma sida förklarad på ett annat sätt.
+  Förklara den här sidan, knapparna för att få samma sida förklarad på ett annat sätt, och ett ord.
 
   Tudi får dokumentets titel och sammanfattning (lika för alla sidor, därför först) och sedan sidans text.
   En bild av sidan skickas bara när appen säger att den behövs: sidan har under 400 tecken text,
@@ -7,11 +7,15 @@
   Sidans text tas från databasen. Det är samma text som pdf.js plockade ut i webbläsaren vid uppladdningen.
 
   Svaret sparas med dokumentet, sidan och sättet som nyckel. Samma knapp på samma sida kostar inget andra gången.
+
+  Ett ord: bara ordet och meningen det står i skickas, inte sidan. Svaret sparas med ordet, meningen och valet,
+  så ett vanligt ord i samma mening förklaras bara en gång.
 */
 const { forbruka } = require("./db");
 const kallor = require("./kallor");
 
 const SIDA_PER_DAG = 60;
+const ORD_PER_DAG = 200;
 const MAX_BILD = 2_500_000; // tecken i data-adressen, ungefär 1,8 MB bild
 const SATT = { enklare: "satt-enklare", steg: "satt-steg-for-steg", exempel: "satt-exempel", annat: "satt-annat-satt" };
 
@@ -100,4 +104,42 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
     }
     return { text: r.svar.text, kallor: r.svar.kallor, sida: nr, satt: satt || null, bild: !!bild, nyckel: r.nyckel };
   }, { maxBody: 3 * 1024 * 1024 });
+
+  /* Förklara eller ge exempel på ett ord i visaren. Sparas inte i chatten. */
+  rutt("POST", "/api/kurser/:kursId/ord", async ctx => {
+    const uid = ctx.user.id, kursId = ctx.params.kursId;
+    if (!db.prepare("SELECT 1 FROM courses WHERE id = ? AND user_id = ?").get(kursId, uid)) throw new Fel(404, "Kursen finns inte.");
+    const { ord, mening, typ, sida } = ctx.body;
+    if (typeof ord !== "string" || !ord.trim() || ord.length > 60) throw new Fel(400, "Ordet saknas.");
+    if (typeof mening !== "string" || mening.length > 800) throw new Fel(400, "Meningen är för lång.");
+    if (typ !== "forklara" && typ !== "exempel") throw new Fel(400, "Det valet finns inte.");
+    /* Sidan används bara för att svaret ska raderas med filen */
+    const dokId = sida && Number.isInteger(sida.dokId)
+      ? db.prepare("SELECT id FROM documents WHERE id = ? AND user_id = ? AND course_id = ?").get(sida.dokId, uid, kursId)?.id ?? null : null;
+    if (!CONFIG.openaiKey) throw new Fel(503, "Tudi kunde inte svara just nu.");
+    const rent = ord.trim(), meningen = mening.replace(/\s+/g, " ").trim();
+    let r;
+    try {
+      r = await ai.cachad({
+        uid, typ: `ord:${typ}`, dokId, kursId,
+        nyckel: [ai.version("ord", undefined, "tudi-grund", "ord"), rent.toLowerCase(), meningen],
+      }, async () => {
+        if (!forbruka(db, uid, "ord", 1, ORD_PER_DAG)) {
+          throw new Fel(429, "Du har bett Tudi om hjälp med dagens ord. Det går igen i morgon från klockan 06.00. Läs upp fungerar som vanligt.");
+        }
+        const ut = await ai.svar({
+          funktion: "ord", uid, cache: "ord",
+          system: ai.tudiPrompt("ord"),
+          inne: [{ role: "user", content: `VAL: ${typ === "forklara" ? "FÖRKLARA" : "EXEMPEL"}\nORD: ${ai.material(rent)}\nMENING: ${ai.material(meningen || rent)}` }],
+        });
+        /* Tudi fick ingen sida, så en sidhänvisning kan bara vara påhittad */
+        return { text: kallor.kontrollera(ut, { till: kallor.tillatna(), dokument: [] }).text.slice(0, 1000) };
+      });
+    } catch (e) {
+      if (e instanceof Fel) throw e;
+      console.error(`[sf] ord misslyckades u=${uid} ${e.code || e.name}`);
+      throw new Fel(502, "Tudi kunde inte svara just nu. Försök igen om en stund.");
+    }
+    return { svar: r.svar.text };
+  });
 };

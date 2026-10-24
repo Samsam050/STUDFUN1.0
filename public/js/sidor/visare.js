@@ -166,18 +166,18 @@ export default async function visa(main, { kursId, filId }) {
     ordEl[i].forEach(el => el.classList.add("sf-pdf-ord--vald"));
     b.setAttribute("aria-expanded", "true");
     const lasKnapp = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten" }, ikon("spela", 20), "Läs upp");
-    const info = h("p", { class: "sf-ordmeny-info", role: "status" });
+    const info = h("div", { class: "sf-ordmeny-info", role: "status" });
     lasKnapp.addEventListener("click", async () => {
       stoppa();
       try { await ljud.spela(await ljud.hamta(dok.id, w), ljud.TEMPO[app.jag.installningar.tempo] || 1); }
       catch (e) { info.textContent = e.message; }
     });
-    /* Förklara och Ge exempel: Tudi svarar utifrån kursmaterialet, med meningen som sammanhang */
+    /* Förklara och Ge exempel: Tudi får ordet och meningen det står i */
     const fraga = typ => async () => {
       info.textContent = "Tudi tänker …";
       try {
         const r = await api("POST", `/api/kurser/${kurs.id}/ord`, { ord: w, typ, mening: meningText(meningMed(i)).slice(0, 800), sida: { dokId: dok.id, nr: sida } });
-        info.textContent = r.svar + (r.kallor.length ? ` (${r.kallor.map(k => `sida ${k.sida}`).join(", ")})` : "");
+        info.replaceChildren(...svarElement(r.svar));
       } catch (e) { info.textContent = e.message; }
     };
     meny.setAttribute("aria-label", `Val för ordet ${w}`);

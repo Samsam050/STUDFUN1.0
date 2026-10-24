@@ -132,3 +132,25 @@ test("mätningen sparar funktion, modell, token och cache, men aldrig text", asy
   assert.equal(rad.ok, 1);
   assert.ok(!allt.includes("Hemlig") && !allt.includes("anbud") && !allt.includes("a@exempel.se"));
 });
+
+test("ett ord: bara ordet och meningen skickas, tak 150 och tänkande none, och samma ord i samma mening sparas", async () => {
+  const data = { ord: "anbud", mening: "Ett anbud gäller en viss tid.", typ: "forklara", sida: { dokId: dokA, nr: 1 } };
+  oa.svar = () => "Ett **anbud** är ett erbjudande [s. 1].";
+  const r = await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: a, data });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.svar, "Ett **anbud** är ett erbjudande.", "Tudi fick ingen sida, så hänvisningen tas bort");
+  const [x] = responses();
+  assert.equal(x.json.max_output_tokens, 150);
+  assert.deepEqual(x.json.reasoning, { effort: "none" });
+  assert.match(x.json.input[0].content, /^Du är Tudi[\s\S]*Studenten har tryckt på ett ord/);
+  assert.equal(x.json.input.length, 2, "ingen sammanfattning, ingen sida");
+  assert.equal(x.json.input[1].content, "VAL: FÖRKLARA\nORD: <material>\nanbud\n</material>\nMENING: <material>\nEtt anbud gäller en viss tid.\n</material>");
+  assert.ok(!inneText(x.json).includes("erbjudande om att ingå"), "sidans text skickas inte");
+
+  const igen = await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: a, data: { ...data, ord: "Anbud" } });
+  assert.equal(igen.json.svar, r.json.svar);
+  assert.equal(responses().length, 1, "samma ord i samma mening kostar inget andra gången");
+  await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: a, data: { ...data, typ: "exempel" } });
+  assert.match(responses()[1].json.input[1].content, /^VAL: EXEMPEL/);
+  assert.equal((await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: b, data })).status, 404);
+});

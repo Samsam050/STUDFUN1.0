@@ -184,21 +184,6 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
     };
   }, { maxBody: 3 * 1024 * 1024 });
 
-  /* Förklara eller ge exempel på ett ord i visaren. Sparas inte i chatten. */
-  rutt("POST", "/api/kurser/:kursId/ord", async ctx => {
-    const uid = ctx.user.id, kursId = ctx.params.kursId;
-    kurs(uid, kursId);
-    const { ord, mening, typ } = ctx.body;
-    if (typeof ord !== "string" || !ord.trim() || ord.length > 60) throw new Fel(400, "Ordet saknas.");
-    if (typeof mening !== "string" || mening.length > 800) throw new Fel(400, "Meningen är för lång.");
-    if (typ !== "forklara" && typ !== "exempel") throw new Fel(400, "Det valet finns inte.");
-    const sida = lasSida(uid, kursId, ctx.body.sida);
-    const fraga = typ === "forklara"
-      ? `Förklara kort vad ordet ${JSON.stringify(ord)} betyder, som det används i meningen ${JSON.stringify(mening)}. Högst tre meningar.`
-      : `Ge ett kort och konkret exempel som visar vad ordet ${JSON.stringify(ord)} betyder, som det används i meningen ${JSON.stringify(mening)}. Högst tre meningar.`;
-    return svara(ctx, { kursId, fraga, sokText: `${ord}: ${mening}`, sida });
-  });
-
   /* Tal till text, för att ställa frågor med rösten. Ljudet sparas inte. */
   rutt("POST", "/api/tal", async ctx => {
     const typ = String(ctx.req.headers["content-type"] || "").split(";")[0];
