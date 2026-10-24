@@ -538,3 +538,10 @@ select.sf-falt { padding-right: 44px; }
   .sf-inlogg-huvud { flex: 1.3 1 520px; align-items: center; padding: 56px var(--sf-s-32); }
   .sf-inlogg-kolumn { gap: var(--sf-s-28); }
 }
+
+/* Tudis svar med listor, fetstil och sidhänvisningar i texten */
+.sf-svar-lista { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: var(--sf-s-6); max-width: 62ch; }
+.sf-bubbla--tudi strong { font-weight: 700; }
+.sf-kalla--i-text { display: inline-flex; min-height: 32px; padding: 0 var(--sf-s-8); margin: 0 2px; vertical-align: baseline; }
+.sf-forklaring:empty { display: none; }
+.sf-forklaring .sf-foljd { padding-top: var(--sf-s-6); }

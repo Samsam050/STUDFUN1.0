@@ -30,8 +30,8 @@ let klar = null;
 
 /* Ljud för en text i en fil. Fel ger ett meddelande som går att visa för studenten. */
 export const hamta = (dokId, text) => hamtaLjud(`${dokId}|${text}`, `/api/dokument/${dokId}/upplas`, { text });
-/* Ett svar från Tudi */
-export const hamtaSvar = text => hamtaLjud(`svar|${text}`, "/api/upplas-svar", { text });
+/* Ett svar från Tudi. Med dokId sparas ljudet med filen, för förklaringar av sidor som kan läsas igen. */
+export const hamtaSvar = (text, dokId) => hamtaLjud(`svar|${dokId || ""}|${text}`, "/api/upplas-svar", { text, dokId });
 /* En provmening med en viss röst, till Inställningar */
 export const hamtaProv = rost => hamtaLjud(`prov|${rost}`, "/api/rostprov", { rost });
 

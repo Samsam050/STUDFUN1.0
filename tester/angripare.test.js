@@ -101,6 +101,7 @@ test("radera kontot efter att ha använt allt: inget av studentens data finns kv
   await s.anrop("PUT", `/api/dokument/${dok}/position`, { kaka, data: { sida: 2 } });
   assert.equal((await s.anrop("POST", `/api/dokument/${dok}/upplas`, { kaka, data: { text } })).status, 200);
   assert.equal((await s.anrop("POST", `/api/kurser/${kurs}/fraga`, { kaka, data: { fraga: `Vad är ${MARKOR}?` } })).status, 200);
+  assert.equal((await s.anrop("POST", `/api/dokument/${dok}/sidor/1/forklara`, { kaka, data: {} })).status, 200);
   const quiz = (await s.anrop("POST", `/api/kurser/${kurs}/ova`, { kaka, data: { typ: "quiz" } })).json.kort;
   await s.anrop("POST", `/api/kort/${quiz[0].id}/svar`, { kaka, data: { val: quiz[0].alternativ[0] } });
   const kort = (await s.anrop("POST", `/api/kurser/${kurs}/ova`, { kaka, data: { typ: "flashcards" } })).json.kort;

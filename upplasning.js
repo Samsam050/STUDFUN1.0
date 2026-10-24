@@ -56,12 +56,17 @@ module.exports = function ({ db, CONFIG, Fel, rutt, konto }) {
     await ljud(ctx, path.join(CONFIG.ttsDir, String(ctx.params.id)), konto.installningar(ctx.user.id).rost, text);
   });
 
-  /* Läser upp ett svar från Tudi. Sparas inte, eftersom samma svar sällan läses två gånger. */
+  /* Läser upp ett svar från Tudi. Ett svar i chatten sparas inte, eftersom samma svar sällan läses två gånger.
+     Med dokId (en förklaring av en sida, som också är sparad) sparas ljudet med filen. */
   rutt("POST", "/api/upplas-svar", async ctx => {
     const text = typeof ctx.body.text === "string" ? ctx.body.text.replace(/\s+/g, " ").trim() : "";
     if (!text) throw new Fel(400, "Det finns ingen text att läsa upp.");
-    if (text.length > 2000) throw new Fel(400, "Texten är för lång för att läsas upp på en gång.");
-    await ljud(ctx, null, konto.installningar(ctx.user.id).rost, text);
+    if (text.length > 4000) throw new Fel(400, "Texten är för lång för att läsas upp på en gång.");
+    const { dokId } = ctx.body;
+    if (dokId !== undefined && dokId !== null && !(Number.isInteger(dokId) && db.prepare("SELECT 1 FROM documents WHERE id = ? AND user_id = ?").get(dokId, ctx.user.id))) {
+      throw new Fel(404, "Filen finns inte.");
+    }
+    await ljud(ctx, dokId ? path.join(CONFIG.ttsDir, String(dokId)) : null, konto.installningar(ctx.user.id).rost, text);
   });
 
   /* Provar en röst i Inställningar. Samma mening för alla, så den sparas en gång per röst. */

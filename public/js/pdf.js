@@ -23,6 +23,30 @@ export async function sidtext(pdf, nr) {
     .replace(/(\p{L})-\n(\p{Ll})/gu, "$1$2"); // ord som avstavats vid radslut blir hela igen
 }
 
+/* Hur stor del av sidan som täcks av bilder, från 0 till 1. En bild ritas i en ruta 1 × 1 som skalas av
+   transformationerna före den, så ytan är absolutbeloppet av deras determinant. Bilder som överlappar räknas två gånger.
+   shortcut: diagram som ritas med linjer räknas inte, bara bilder. Sidor med lite text får bild ändå. */
+export async function bildAndel(pdf, nr) {
+  const sida = await pdf.getPage(nr);
+  const [x0, y0, x1, y1] = sida.view;
+  const yta = Math.abs((x1 - x0) * (y1 - y0)) || 1;
+  const { fnArray, argsArray } = await sida.getOperatorList();
+  const O = pdfjs.OPS;
+  const det = m => (m && m.length >= 4 ? m[0] * m[3] - m[1] * m[2] : 1);
+  let skala = 1, tackt = 0;
+  const stack = [];
+  fnArray.forEach((fn, i) => {
+    const a = argsArray[i];
+    if (fn === O.save || fn === O.paintFormXObjectBegin) { stack.push(skala); if (fn === O.paintFormXObjectBegin) skala *= det(a?.[0]); }
+    else if (fn === O.restore || fn === O.paintFormXObjectEnd) skala = stack.pop() ?? 1;
+    else if (fn === O.transform) skala *= a[0] * a[3] - a[1] * a[2];
+    else if (fn === O.paintImageXObject || fn === O.paintInlineImageXObject || fn === O.paintImageMaskXObject || fn === O.paintSolidColorImageMask) tackt += Math.abs(skala);
+    else if (fn === O.paintImageXObjectRepeat) tackt += Math.abs(skala * a[1] * a[2]) * (a[3]?.length || 0) / 2;
+  });
+  sida.cleanup();
+  return Math.min(1, tackt / yta);
+}
+
 /* Textbitarna på en sida med sina rutor i bildpunkter, i samma skala som viewport från ritaSida.
    y är radens överkant: pdf.js ger baslinjen, och bokstäverna når ungefär 0,9 teckenhöjd upp. */
 export async function textrutor(pdf, nr, viewport) {
