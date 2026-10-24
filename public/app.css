@@ -545,3 +545,8 @@ select.sf-falt { padding-right: 44px; }
 .sf-kalla--i-text { display: inline-flex; min-height: 32px; padding: 0 var(--sf-s-8); margin: 0 2px; vertical-align: baseline; }
 .sf-forklaring:empty { display: none; }
 .sf-forklaring .sf-foljd { padding-top: var(--sf-s-6); }
+.sf-borja { counter-reset: steg; }
+.sf-borja .sf-material-rad::before {
+  counter-increment: steg; content: counter(steg); flex: none; display: grid; place-items: center; width: 36px; height: 36px;
+  border-radius: var(--sf-r-rund); background: var(--sf-gron-100); color: var(--sf-gron); font-weight: 700;
+}

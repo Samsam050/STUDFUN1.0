@@ -1,4 +1,4 @@
-/* En kurs: namn och termin, materialet och radera kursen.
+/* En kurs: namn och termin, Börja här, materialet och radera kursen.
    Fråga Tudi och Öva är spärrade tills en PDF är klar. */
 import { h, ikon, meddelande, felMedForsok, dialog, laddar } from "../dom.js";
 import { api, app } from "../app.js";
@@ -52,6 +52,30 @@ export default async function visa(main, { kursId }) {
     },
   });
 
+  /* Börja här: Tudis förslag på i vilken ordning materialet kan läsas. Visas när det finns ett förslag. */
+  const borjaRuta = h("section", { class: "sf-stapel sf-stapel--luft", "aria-labelledby": "borja-rubrik", hidden: true });
+  let borjaNycklar = "";
+  async function hamtaBorja(ny = false) {
+    let r;
+    try { r = await api(ny ? "POST" : "GET", `/api/kurser/${kurs.id}/borja`); }
+    catch (e) {
+      if (ny) { borjaRuta.querySelector(".sf-borja-fel")?.replaceChildren(meddelande("fel", e.message)); borjaRuta.querySelector("button").disabled = false; }
+      return;
+    }
+    borjaRuta.hidden = !r.steg.length;
+    borjaRuta.replaceChildren(
+      h("div", { class: "sf-rad-mellan" }, h("h2", { id: "borja-rubrik" }, "Börja här"),
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: e => { e.currentTarget.disabled = true; hamtaBorja(true); } }, "Föreslå en ny ordning")),
+      h("p", { class: "sf-hjalp" }, "Tudis förslag på en ordning att läsa materialet i. Du väljer själv."),
+      h("ol", { class: "sf-lista sf-borja" }, r.steg.map(s => h("li", { class: "sf-material-rad" },
+        h("div", { class: "sf-stapel sf-vaxer" },
+          h("span", { class: "sf-rad-rubrik sf-bryt" }, s.titel, ", ", s.fran === s.till ? `sida ${s.fran}` : `sidorna ${s.fran}–${s.till}`),
+          s.varfor && h("span", { class: "sf-hjalp" }, s.varfor)),
+        h("a", { href: `/kurser/${kurs.id}/visa/${s.dokId}?sida=${s.fran}`, class: "sf-btn sf-btn--sekundar sf-btn--liten",
+          "aria-label": `Läs ${s.titel} från sida ${s.fran}` }, "Läs")))),
+      h("div", { class: "sf-borja-fel" }));
+  }
+
   /* Materialet. Uppdateras av sig själv medan någon fil bearbetas. */
   const materialRuta = h("div", {}, laddar("Hämtar materialet …", 1));
   const fragaRuta = h("span", { class: "sf-knapprad" });
@@ -72,6 +96,9 @@ export default async function visa(main, { kursId }) {
       : h("button", { type: "button", class: `sf-btn ${klass}`, disabled: true, "aria-describedby": "fraga-sparr" }, ikon(ik, 22), text));
     fragaRuta.replaceChildren(knapp(`/kurser/${kurs.id}/fraga`, "chatt", "Fråga Tudi", "sf-btn--primar"), knapp(`/kurser/${kurs.id}/ova/quiz`, "ova", "Öva", "sf-btn--sekundar"));
     fragaSparr.hidden = klar;
+    /* Börja här hämtas igen när det har kommit nytt material eller något har raderats */
+    const nycklar = lista.filter(d => d.status === "klar").map(d => d.id).join(",");
+    if (nycklar !== borjaNycklar) { borjaNycklar = nycklar; if (nycklar) hamtaBorja(); else borjaRuta.hidden = true; }
     if (lista.some(d => d.status === "bearbetas")) setTimeout(() => { if (materialRuta.isConnected) hamtaMaterial(); }, 3000);
   }
   const tomKurs = () => h("div", { class: "sf-tom" },
@@ -127,6 +154,7 @@ export default async function visa(main, { kursId }) {
           h("button", { type: "button", class: "sf-btn sf-btn--sekundar", onclick: andra }, "Ändra namn och termin"))),
       fragaSparr),
     status,
+    borjaRuta,
     h("section", { class: "sf-stapel sf-stapel--luft", "aria-labelledby": "material-rubrik" },
       h("h2", { id: "material-rubrik" }, "Material"), materialRuta, meddela),
     h("section", { class: "sf-sektion sf-rad-mellan", "aria-labelledby": "radera-rubrik" },

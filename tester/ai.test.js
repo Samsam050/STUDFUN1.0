@@ -167,3 +167,27 @@ test("uppläsningen använder MODEL_TTS och mäts med antal tecken, och förklar
   d.close();
   assert.equal((await s.anrop("POST", "/api/upplas-svar", { kaka: a, data: { text, dokId: dokB } })).status, 404, "inte någon annans fil");
 });
+
+test("Börja här: bara titlar och sammanfattningar skickas, förslaget sparas tills materialet ändras", async () => {
+  const r = await s.anrop("GET", `/api/kurser/${kursA}/borja`, { kaka: a });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json.steg, [{ dokId: dokA, fran: 1, till: 2, varfor: "Börja med en överblick.", titel: "Kursbok" }], "dokument och sidor som inte finns tas bort");
+  const [x] = responses();
+  assert.deepEqual(x.json.reasoning, { effort: "none" });
+  assert.equal(x.json.max_output_tokens, 600);
+  const text = inneText(x.json);
+  assert.match(text, /dokument_id: \d+\nTitel: Kursbok\nSidor: 1–3\nKort: Dokumentet handlar om avtal\./);
+  assert.ok(!text.includes("Ett anbud är ett erbjudande om att ingå"), "dokumentets text skickas inte");
+
+  await s.anrop("GET", `/api/kurser/${kursA}/borja`, { kaka: a });
+  assert.equal(responses().length, 1, "förslaget kommer ur cachen");
+  await s.anrop("POST", `/api/kurser/${kursA}/borja`, { kaka: a });
+  assert.equal(responses().length, 2, "Föreslå en ny ordning ber om ett nytt");
+  const ny = await laddaUpp(a, kursA, ["Föreläsning ett om avtal."], "Föreläsning 1");
+  oa.anrop.length = 0;
+  await s.anrop("GET", `/api/kurser/${kursA}/borja`, { kaka: a });
+  assert.equal(responses().length, 1, "nytt material ger ett nytt förslag");
+  assert.match(inneText(responses()[0].json), /Titel: Föreläsning 1/);
+  await s.anrop("DELETE", `/api/dokument/${ny}`, { kaka: a });
+  assert.equal((await s.anrop("GET", `/api/kurser/${kursA}/borja`, { kaka: b })).status, 404);
+});

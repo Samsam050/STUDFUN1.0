@@ -62,6 +62,10 @@ function responsSvar(json) {
   if (format === "quiz") return { fragor: [0, 1, 2, 3, 4, 5, 6].map(i => ({ typ: "flerval", fraga: `Fråga ${i}?`, alternativ: ["Rätt", "Fel ett", "Fel två", "Fel tre"], ratt: 0, forklaring: "För att.", sida: sida(i) }))
     .concat([7, 8, 9].map(i => ({ typ: "kort", fraga: `Vad kallas ett ja till ett anbud ${i}?`, facit: "accept", forklaring: "Ett ja kallas accept.", sida: sida(i) }))) };
   if (format === "flashcards") return { kort: Array.from({ length: 15 }, (_, i) => ({ fram: `Begrepp ${i}`, bak: `Förklaring ${i}.`, sida: sida(i) })) };
+  if (format === "borja_har") {
+    const id = (inneText(json).match(/dokument_id: (\d+)/) || [])[1] || "0";
+    return { steg: [{ dokument_id: id, sidor: "1–2", varfor: "Börja med en överblick." }, { dokument_id: "999", sidor: "1–2", varfor: "Finns inte." }, { dokument_id: id, sidor: "2–99", varfor: "För många sidor." }] };
+  }
   if (format === "rattning") return { bedomning: "fel", aterkoppling: "Svaret saknar ordet accept." };
   return "Ett **anbud** är ett erbjudande [s. 1].";
 }

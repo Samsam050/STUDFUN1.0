@@ -148,6 +148,7 @@ require("./dokument")(delar);
 require("./upplasning")(delar);
 require("./tudi")(delar);
 require("./forklara")(delar);
+require("./borja")(delar);
 require("./ova")(delar);
 require("./nasta")(delar);
 
