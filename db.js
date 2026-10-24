@@ -157,6 +157,8 @@ const MIGRATIONER = [
      begrepp TEXT NOT NULL DEFAULT '[]'
    );
    CREATE INDEX avsnitt_document ON avsnitt(document_id);`,
+  /* Rättning av korta svar: ratt, delvis eller fel. ratt i attempts är 1 bara för ratt. */
+  `ALTER TABLE attempts ADD COLUMN bedomning TEXT;`,
 ];
 
 function oppna(dataDir) {

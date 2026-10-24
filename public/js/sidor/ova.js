@@ -1,5 +1,5 @@
 /* Öva: quiz och flashcards från kursens material. /ova öppnar quiz för kursen studenten senast använde.
-   Servern rättar varje svar och sparar det. */
+   Studenten väljer först hela kursen, ett dokument eller vissa sidor. Servern rättar varje svar och sparar det. */
 import { h, ikon, felMedForsok } from "../dom.js";
 import { api, app, navigera } from "../app.js";
 import * as ljud from "../upplasning.js";
@@ -39,12 +39,53 @@ async function starta(main, kursId, typ, rita, repetera = false) {
       h("h1", { class: "sf-ova-rubrik" }, rubrik), status),
     innehall));
 
+  /* Vad studenten vill öva på: hela kursen, ett dokument eller vissa sidor i det. Valet gäller tills sidan lämnas. */
+  let val = {};
+  async function valj() {
+    let dokument;
+    try { dokument = (await api("GET", `/api/kurser/${kurs.id}/dokument`)).dokument.filter(d => d.status === "klar"); }
+    catch { dokument = []; }
+    if (!dokument.length) return ny();
+    const dokVal = h("select", { id: "ova-dok", class: "sf-falt" },
+      h("option", { value: "" }, "Hela kursen"), dokument.map(d => h("option", { value: String(d.id) }, d.titel)));
+    const fran = h("input", { id: "ova-fran", class: "sf-falt sf-sidfalt", type: "text", inputmode: "numeric", autocomplete: "off" });
+    const till = h("input", { id: "ova-till", class: "sf-falt sf-sidfalt", type: "text", inputmode: "numeric", autocomplete: "off" });
+    const sidor = h("div", { class: "sf-rad sf-rad--tat", hidden: true },
+      h("label", { for: "ova-fran" }, "Från sida"), fran, h("label", { for: "ova-till" }, "till"), till,
+      h("span", { class: "sf-hjalp" }, "Lämna tomt för hela dokumentet."));
+    const fel = h("div", {});
+    dokVal.addEventListener("change", () => { sidor.hidden = !dokVal.value; });
+    const form = h("form", { class: "sf-ruta sf-stapel sf-stapel--luft", novalidate: true },
+      h("h2", {}, "Vad vill du öva på?"),
+      h("div", { class: "sf-falt-grupp" }, h("label", { for: "ova-dok" }, "Material"), dokVal),
+      sidor, fel,
+      h("button", { type: "submit", class: "sf-btn sf-btn--primar sf-btn--sjalv" }, quiz ? "Gör quizet" : "Gör flashcards", ikon("pil", 22)));
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      val = {};
+      if (dokVal.value) {
+        val.dokId = Number(dokVal.value);
+        const d = dokument.find(x => x.id === val.dokId);
+        if (fran.value.trim() || till.value.trim()) {
+          const a = Number(fran.value || 1), b = Number(till.value || d.sidor);
+          if (!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b > d.sidor || a > b) {
+            fel.replaceChildren(h("p", { class: "sf-medd sf-medd--fel", role: "alert" }, `Välj sidor mellan 1 och ${d.sidor}.`));
+            return fran.focus();
+          }
+          Object.assign(val, { fran: a, till: b });
+        }
+      }
+      ny();
+    });
+    innehall.replaceChildren(form);
+  }
+
   async function ny() {
     innehall.replaceChildren(h("div", { class: "sf-ruta sf-ova-laddar", role: "status" },
       h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }),
       h("p", {}, quiz ? "Tudi gör i ordning frågor från ditt material …" : "Tudi gör i ordning flashcards från ditt material …")));
     try {
-      const { kort } = repetera ? await api("GET", `/api/kurser/${kurs.id}/repetera-${typ}`) : await api("POST", `/api/kurser/${kurs.id}/ova`, { typ });
+      const { kort } = repetera ? await api("GET", `/api/kurser/${kurs.id}/repetera-${typ}`) : await api("POST", `/api/kurser/${kurs.id}/ova`, { typ, ...val });
       if (!kort.length) {
         innehall.replaceChildren(h("div", { class: "sf-ruta sf-resultat" },
           h("img", { src: "/bilder/tudi.png", alt: "", class: "sf-klar-tudi" }),
@@ -53,7 +94,7 @@ async function starta(main, kursId, typ, rita, repetera = false) {
             h("a", { href: `/kurser/${kurs.id}/ova/${typ}`, class: "sf-btn sf-btn--accent sf-btn--sjalv" }, quiz ? "Nytt quiz" : "Nya flashcards"))));
         return;
       }
-      rita({ kurs, kort, innehall, status, ny });
+      rita({ kurs, kort, innehall, status, ny, valj });
     } catch (e) {
       innehall.replaceChildren(e.status === 409
         ? h("div", { class: "sf-tom" }, h("img", { src: "/bilder/tudi.png", alt: "", class: "sf-tom-tudi" }),
@@ -63,7 +104,7 @@ async function starta(main, kursId, typ, rita, repetera = false) {
       if (e.status === 429) innehall.querySelector("button")?.remove();
     }
   }
-  await ny();
+  await (repetera ? ny() : valj());
 }
 
 const sidaLank = (kurs, svar, text) => h("a", { href: `/kurser/${kurs.id}/visa/${svar.dokId}?sida=${svar.sida}`, class: "sf-kalla" }, ikon("dokument", 18), text);
@@ -76,7 +117,7 @@ const lasUpp = (dokId, text) => {
 };
 
 /* Quiz: en fråga i taget, Kontrollera svar, sedan resultatsidan med ett nästa steg */
-function ritaQuiz({ kurs, kort, innehall, status, ny }) {
+function ritaQuiz({ kurs, kort, innehall, status, valj }) {
   const resultat = [];
   let nr = 0;
   const fyll = h("div", { class: "sf-stapel-fyll" });
@@ -97,10 +138,10 @@ function ritaQuiz({ kurs, kort, innehall, status, ny }) {
       svarEl.addEventListener("change", () => { kontrollera.disabled = false; });
       varde = () => radioer.find(r => r.checked)?.value;
     } else {
-      const falt = h("input", { id: "kort-svar", class: "sf-falt", type: "text", autocomplete: "off", maxlength: "200", placeholder: "Skriv här" });
+      const falt = h("textarea", { id: "kort-svar", class: "sf-falt", rows: "3", autocomplete: "off", maxlength: "400", placeholder: "Skriv här" });
       falt.addEventListener("input", () => { kontrollera.disabled = !falt.value.trim(); });
-      falt.addEventListener("keydown", e => { if (e.key === "Enter" && falt.value.trim()) kontrollera.click(); });
-      svarEl = h("div", { class: "sf-falt-grupp" }, h("label", { for: "kort-svar" }, "Ditt svar, ett eller några ord"), falt);
+      falt.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && falt.value.trim()) { e.preventDefault(); kontrollera.click(); } });
+      svarEl = h("div", { class: "sf-falt-grupp" }, h("label", { for: "kort-svar" }, "Ditt svar, högst två meningar. Stavning spelar ingen roll."), falt);
       varde = () => falt.value.trim();
     }
     const knappar = h("div", { class: "sf-knapprad" }, kontrollera);
@@ -118,9 +159,11 @@ function ritaQuiz({ kurs, kort, innehall, status, ny }) {
         if (a === svar.rattSvar) { l.classList.add("sf-alt--ratt"); l.querySelector(".sf-alt-etikett").textContent = "Rätt svar"; }
         else if (a === v) { l.classList.add("sf-alt--fel"); l.querySelector(".sf-alt-etikett").textContent = "Ditt svar"; }
       });
+      const delvis = svar.bedomning === "delvis";
       svarRuta.replaceChildren(h("div", { class: `sf-medd-stor sf-ruta sf-quiz-svar sf-quiz-svar--${svar.ratt ? "ratt" : "fel"}`, role: "status" },
-        h("p", { class: "sf-medd-rubrik sf-rad" }, ikon(svar.ratt ? "bock" : "fel", 26), svar.ratt ? "Rätt!" : "Inte riktigt"),
-        !svar.ratt && h("p", {}, h("strong", {}, "Rätt svar: "), svar.rattSvar),
+        h("p", { class: "sf-medd-rubrik sf-rad" }, ikon(svar.ratt ? "bock" : "fel", 26), svar.ratt ? "Rätt!" : delvis ? "Delvis rätt" : "Inte riktigt"),
+        svar.aterkoppling && h("p", {}, svar.aterkoppling),
+        !svar.ratt && h("p", {}, h("strong", {}, k.typ === "kort" ? "Facit: " : "Rätt svar: "), svar.rattSvar),
         svar.forklaring && h("p", {}, svar.forklaring),
         sidaLank(kurs, svar, `Det står på sida ${svar.sida}`)));
       const sista = nr === kort.length - 1;
@@ -146,14 +189,14 @@ function ritaQuiz({ kurs, kort, innehall, status, ny }) {
           h("h2", { id: "res-rubrik", tabindex: "-1" }, `Du hade ${ratt} av ${resultat.length} rätt`),
           h("p", {}, ratt === resultat.length ? "Snyggt! Du kunde allt i den här omgången." : "Bra jobbat. Läs sidan där svaret står, och gör sedan quizet en gång till."))),
       h("ul", { class: "sf-lista sf-material" }, resultat.map(r => h("li", { class: "sf-material-rad" },
-        h("span", { class: `sf-marke sf-marke--${r.svar.ratt ? "klar" : "fel"}` }, ikon(r.svar.ratt ? "bock" : "fel", 18), r.svar.ratt ? "Rätt" : "Fel"),
+        h("span", { class: `sf-marke sf-marke--${r.svar.ratt ? "klar" : "fel"}` }, ikon(r.svar.ratt ? "bock" : "fel", 18), r.svar.ratt ? "Rätt" : r.svar.bedomning === "delvis" ? "Delvis" : "Fel"),
         h("span", { class: "sf-vaxer" }, r.k.fraga), h("span", { class: "sf-etikett" }, `Sida ${r.svar.sida}`)))),
       h("div", { class: "sf-nasta-steg sf-mork" },
         h("span", { class: "sf-nasta-etikett" }, "Nästa steg"),
         h("p", {}, forstaFel ? `Läs sida ${forstaFel.svar.sida} igen. Där står svaret på den första frågan du svarade fel på.` : "Gör ett nytt quiz, eller öva med flashcards."),
         h("div", { class: "sf-knapprad" },
           forstaFel ? h("a", { href: `/kurser/${kurs.id}/visa/${forstaFel.svar.dokId}?sida=${forstaFel.svar.sida}`, class: "sf-btn sf-btn--accent" }, `Läs sida ${forstaFel.svar.sida}`)
-            : h("button", { type: "button", class: "sf-btn sf-btn--accent", onclick: ny }, "Nytt quiz"),
+            : h("button", { type: "button", class: "sf-btn sf-btn--accent", onclick: valj }, "Nytt quiz"),
           h("button", { type: "button", class: "sf-btn sf-btn--ljus", onclick: () => { resultat.length = 0; nr = 0; fraga(); } }, "Gör quizet igen")))));
     innehall.querySelector("#res-rubrik").focus();
   }
