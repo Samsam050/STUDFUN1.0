@@ -11,6 +11,9 @@
     APP_ORIGIN=http://localhost:8788   StudFuns egen adress. Ändrande anrop från andra adresser nekas.
     DATA_DIR=./data              databasen och PDF:erna. Ska bara kunna läsas av StudFuns användare.
     TRUST_PROXY=1                läs studentens adress från X-Forwarded-For (bara bakom egen proxy)
+    OPENAI_API_KEY=sk-...        stannar på servern. Utan den blir uppladdade filer aldrig klara för Tudi.
+    OPENAI_BASE=https://api.openai.com
+    VEKTOR_MODELL=text-embedding-3-small
 */
 const http = require("http");
 const fs = require("fs");
@@ -24,6 +27,9 @@ const CONFIG = {
   origin: process.env.APP_ORIGIN || `http://localhost:${PORT}`,
   dataDir: process.env.DATA_DIR || path.join(__dirname, "data"),
   trustProxy: process.env.TRUST_PROXY === "1",
+  openaiKey: process.env.OPENAI_API_KEY || "",
+  openaiBase: process.env.OPENAI_BASE || "https://api.openai.com",
+  vektorModell: process.env.VEKTOR_MODELL || "text-embedding-3-small",
 };
 CONFIG.pdfDir = path.join(CONFIG.dataDir, "pdf");
 fs.mkdirSync(CONFIG.pdfDir, { recursive: true, mode: 0o700 });
@@ -44,10 +50,14 @@ const SAKERHET = {
   "Permissions-Policy": "camera=(), geolocation=(), payment=()",
 };
 if (CONFIG.origin.startsWith("https:")) SAKERHET["Strict-Transport-Security"] = "max-age=31536000";
+CONFIG.sakerhet = SAKERHET;
 
 const TYPER = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8",
+  /* pdf.js */
+  ".mjs": "text/javascript; charset=utf-8", ".bcmap": "application/octet-stream", ".pfb": "application/octet-stream",
+  ".ttf": "font/ttf", ".wasm": "application/wasm",
 };
 
 /* Ett fel som är menat för studenten. Andra fel visas aldrig med detaljer. */
@@ -55,11 +65,12 @@ class Fel extends Error {
   constructor(status, text) { super(text); this.status = status; }
 }
 
-/* Rutterna. :namn i mönstret matchar bara siffror, så id:n kan aldrig vara text. */
+/* Rutterna. :namn i mönstret matchar bara siffror, så id:n kan aldrig vara text.
+   ra: rutten tar emot en fil av den typen i stället för JSON. */
 const rutter = [];
 function rutt(metod, monster, fn, val = {}) {
   const re = new RegExp("^" + monster.replace(/:(\w+)/g, "(?<$1>\\d+)") + "$");
-  rutter.push({ metod, monster, re, fn, oppen: !!val.oppen, maxBody: val.maxBody || 64 * 1024 });
+  rutter.push({ metod, monster, re, fn, oppen: !!val.oppen, ra: val.ra, maxBody: val.maxBody || 64 * 1024 });
 }
 
 function lasBody(req, max) {
@@ -105,6 +116,7 @@ function raderaPdf(fil) {
 const delar = { db, CONFIG, Fel, rutt, raderaPdf };
 const konto = require("./konto")(delar);
 require("./kurser")(delar);
+require("./dokument")(delar);
 
 async function api(req, res, url) {
   /* Anrop som ändrar något godtas bara från StudFuns egen adress */
@@ -120,7 +132,11 @@ async function api(req, res, url) {
   try {
     if (!r.oppen && !ctx.user) throw new Fel(401, "Du behöver logga in.");
     for (const [k, v] of Object.entries(r.re.exec(url.pathname).groups || {})) ctx.params[k] = Number(v);
-    ctx.body = req.method === "GET" ? {} : await lasJson(req, r.maxBody);
+    if (req.method === "GET") ctx.body = {};
+    else if (r.ra) {
+      if (!String(req.headers["content-type"] || "").startsWith(r.ra)) throw new Fel(415, "Fel sorts fil.");
+      ctx.body = await lasBody(req, r.maxBody);
+    } else ctx.body = await lasJson(req, r.maxBody);
     const data = await r.fn(ctx);
     if (!res.headersSent) skicka(res, ctx.status, data, ctx.headers);
     console.log(`[sf] ${req.method} ${r.monster} ${ctx.status} u=${ctx.user ? ctx.user.id : "-"}`);
@@ -148,7 +164,7 @@ async function statisk(req, res, url) {
     res.writeHead(404, { ...SAKERHET, "Content-Type": "text/plain; charset=utf-8" });
     return res.end("Finns inte.");
   }
-  const lange = /\.(woff2|png)$/.test(fil);
+  const lange = /\.(woff2|png)$/.test(fil) || fil.includes(`${path.sep}vendor${path.sep}`); // vendor har versionen i mappnamnet
   res.writeHead(200, { ...SAKERHET, "Content-Type": typ, "Cache-Control": lange ? "public, max-age=604800" : "no-cache" });
   res.end(req.method === "HEAD" ? undefined : innehall);
 }
@@ -161,7 +177,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, SAKERHET); return res.end(); }
   return statisk(req, res, url);
 });
-server.requestTimeout = 120_000;
+server.requestTimeout = 10 * 60_000; // en PDF på 50 MB över en långsam uppkoppling
 
 server.listen(CONFIG.port, CONFIG.host, () => {
   console.log(`StudFun 1.0 på http://${CONFIG.host}:${CONFIG.port}  (adress ${CONFIG.origin})`);

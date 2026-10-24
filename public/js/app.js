@@ -6,6 +6,7 @@ import installningar from "./sidor/installningar.js";
 import kontoRaderat from "./sidor/konto-raderat.js";
 import kurser from "./sidor/kurser.js";
 import kurs from "./sidor/kurs.js";
+import laddaUpp from "./sidor/ladda-upp.js";
 
 /* kvitto: ett meddelande som nästa sida visar en gång, till exempel "Kursen är skapad" */
 export const app = { jag: null, kvitto: null };
@@ -18,6 +19,7 @@ const SIDOR = [
   { re: /^\/$/, sida: start, titel: "Hem", meny: "hem" },
   { re: /^\/kurser$/, sida: kurser, titel: "Mina kurser", meny: "kurser" },
   { re: /^\/kurser\/(?<kursId>\d+)$/, sida: kurs, titel: "Kurs", meny: "kurser" },
+  { re: /^\/kurser\/(?<kursId>\d+)\/ladda-upp$/, sida: laddaUpp, titel: "Nytt material", meny: "kurser" },
   { re: /^\/installningar$/, sida: installningar, titel: "Inställningar", meny: "installningar" },
 ];
 

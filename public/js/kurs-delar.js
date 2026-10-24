@@ -10,7 +10,9 @@ export function kurskort(k, i, rubrik = "h2") {
     h("div", { class: "sf-kurskort-topp" },
       h("div", { class: "sf-stapel" }, h(rubrik, { class: "sf-kurskort-namn" }, k.namn), h("p", { class: "sf-etikett" }, kursMeta(k))),
       h("span", { class: `sf-ikonruta${i % 2 ? " sf-ikonruta--orange" : ""}`, "aria-hidden": "true" }, ikon("kurser"))),
-    h("a", { href: `/kurser/${k.id}`, class: "sf-btn sf-btn--primar sf-btn--liten sf-btn--sjalv", "aria-label": `Öppna kursen ${k.namn}` }, "Öppna kursen"));
+    h("div", { class: "sf-knapprad" },
+      h("a", { href: `/kurser/${k.id}`, class: "sf-btn sf-btn--primar sf-btn--liten", "aria-label": `Öppna kursen ${k.namn}` }, "Öppna kursen"),
+      !k.antalPdf && h("a", { href: `/kurser/${k.id}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-label": `Ladda upp PDF till ${k.namn}` }, "Ladda upp PDF")));
 }
 
 /* Innevarande termin och de två nästa. Höstterminen räknas från juli. */

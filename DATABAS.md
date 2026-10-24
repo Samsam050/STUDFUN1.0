@@ -41,13 +41,33 @@ Databasen är inställd så att raderade rader skrivs över med nollor (`secure_
 
 En student kan ha högst 50 kurser.
 
-## Tabeller som används från steg 3 och framåt
+## documents
+| Fält | Varför |
+|---|---|
+| `id` | Kopplar texten, sökindexet och korten till filen. |
+| `user_id`, `course_id` | Vems filen är och i vilken kurs. |
+| `titel` | Filnamnet utan `.pdf`, högst 200 tecken. Visas som text. |
+| `sidor` | Antal sidor, högst 300. |
+| `status` | `vantar_fil` medan PDF:en laddas upp, `bearbetas` medan vektorerna görs, `klar` eller `fel`. Uppladdningar som avbröts och är äldre än en timme raderas automatiskt. |
+| `fil` | Slumpat namn på PDF:en i `data/pdf/`, till exempel `1f69…e075.pdf`. Aldrig studentens filnamn. |
+| `storlek` | Filens storlek i byte, högst 50 MB. |
+| `skapad` | Ordningen i listan, nyaste först. |
+
+En student kan ha högst 20 filer.
+
+## chunks
+| Fält | Varför |
+|---|---|
+| `user_id`, `document_id` | Vems texten är och vilken fil den kommer från. |
+| `sida` | Sidan biten står på. Tudi visar den som källa. |
+| `text` | Ungefär en halv sida text. Bryts aldrig mitt i en mening, och sträcker sig aldrig över två sidor. |
+| `vektor` | Vektorn från OpenAI (`text-embedding-3-small`), sparad som 32‑bitars flyttal. Görs en gång per fil. |
+
+## Tabeller som används från steg 5 och framåt
 De skapas redan nu, så att alla rader har `user_id` från början.
 
 | Tabell | Fält |
 |---|---|
-| `documents` | `course_id`, `titel`, `sidor`, `status`, `fil` (slumpat filnamn, aldrig studentens), `storlek`, `skapad` |
-| `chunks` | `document_id`, `sida`, `text`, `vektor` |
 | `messages` | `course_id`, `roll`, `text`, `kallor`, `tid` |
 | `cards` | `course_id`, `document_id`, `typ`, `fraga`, `svar`, `kalla_sida` |
 | `attempts` | `card_id`, `ratt`, `tid` |

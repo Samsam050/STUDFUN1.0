@@ -4,13 +4,13 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-async function startaServer() {
+async function startaServer(extraEnv = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studfun-test-"));
   const port = 20000 + Math.floor(Math.random() * 20000);
   const origin = `http://localhost:${port}`;
   const flaggor = process.execArgv.filter(a => a.includes("sqlite"));
   const proc = spawn(process.execPath, [...flaggor, path.join(__dirname, "..", "server.js")], {
-    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, APP_ORIGIN: origin },
+    env: { ...process.env, OPENAI_API_KEY: "", PORT: String(port), DATA_DIR: dataDir, APP_ORIGIN: origin, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let logg = "";
@@ -49,4 +49,23 @@ async function startaServer() {
   };
 }
 
-module.exports = { startaServer };
+/* En låtsas-OpenAI som svarar på vektoranrop. Sparar anropen så att testerna kan titta på dem. */
+function falskOpenAI() {
+  const http = require("http");
+  const anrop = [];
+  const server = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", d => { body += d; });
+    req.on("end", () => {
+      const json = JSON.parse(body || "{}");
+      anrop.push({ url: req.url, auth: req.headers.authorization, json });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: (json.input || []).map(() => ({ embedding: Array.from({ length: 8 }, () => Math.random()) })) }));
+    });
+  });
+  return new Promise(r => server.listen(0, "127.0.0.1", () => r({
+    bas: `http://127.0.0.1:${server.address().port}`, anrop, stang: () => server.close(),
+  })));
+}
+
+module.exports = { startaServer, falskOpenAI };
