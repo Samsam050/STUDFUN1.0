@@ -62,25 +62,37 @@ En student kan ha högst 20 filer.
 | `user_id`, `document_id` | Vems texten är och vilken fil den kommer från. |
 | `sida` | Sidan biten står på. Tudi visar den som källa. |
 | `text` | Ungefär en halv sida text. Bryts aldrig mitt i en mening, och sträcker sig aldrig över två sidor. |
-| `vektor` | Vektorn från OpenAI (`text-embedding-3-small`), sparad som 32‑bitars flyttal. Görs en gång per fil. |
+| `vektor` | Vektorn från OpenAI (`text-embedding-3-small`, 512 dimensioner), sparad som 32‑bitars flyttal. Görs en gång per fil. |
 
 ## anvandning
 | Fält | Varför |
 |---|---|
 | `user_id` | Vems användning det är. |
 | `dag` | Dagen, som byts klockan 06.00 svensk tid. Rader äldre än en vecka raderas. |
-| `typ` | Vad som räknas, till exempel `upplasning` (tecken som lästs upp och inte redan fanns sparade). |
+| `typ` | Vad som räknas: `upplasning` (tecken som lästs upp och inte redan fanns sparade), `fragor` (frågor till Tudi, en fråga med bild räknas som två) och `tal` (tal till text). |
 | `antal` | Hur mycket som använts. Jämförs med dagens tak. |
 
 ## Sparad uppläsning (inte i databasen)
 Uppläst ljud sparas som filer i `data/upplasning/<filens id>/`, så att samma text bara hämtas en gång från OpenAI. Mappen raderas när filen, kursen, allt material eller kontot raderas. Röstproven i Inställningar ligger i `data/upplasning/prov/` och innehåller ingen text från studenter.
 
-## Tabeller som används från steg 5 och framåt
+## messages
+Samtalet med Tudi i en kurs. Förklaringar av enskilda ord i läsläget sparas inte.
+
+| Fält | Varför |
+|---|---|
+| `user_id`, `course_id` | Vems samtalet är och i vilken kurs. |
+| `roll` | `student` eller `tudi`. |
+| `text` | Frågan, eller Tudis svar. För följdknapparna sparas knappens text, till exempel "Enklare". |
+| `kallor` | Källorna i Tudis svar som JSON: fil‑id, filens titel och sida. En tom lista betyder att materialet inte räckte. |
+| `tid` | När det skrevs. |
+
+Bilden av sidan som skickas till Tudi från visaren sparas inte, och inte heller ljudet från tal till text.
+
+## Tabeller som används från steg 6 och framåt
 De skapas redan nu, så att alla rader har `user_id` från början.
 
 | Tabell | Fält |
 |---|---|
-| `messages` | `course_id`, `roll`, `text`, `kallor`, `tid` |
 | `cards` | `course_id`, `document_id`, `typ`, `fraga`, `svar`, `kalla_sida` |
 | `attempts` | `card_id`, `ratt`, `tid` |
 

@@ -1,8 +1,11 @@
-/* Visaren: PDF:en som den ser ut, en sida i taget.
-   Tudi‑panelen bredvid sidan kommer i steg 5. */
+/* Visaren: PDF:en som den ser ut, en sida i taget, med Tudi bredvid.
+   När studenten frågar Tudi skickas sidnumret, sidans text och en bild av sidan med.
+   Bilden ritas här i webbläsaren, inte på servern. */
 import { h, ikon } from "../dom.js";
-import { api } from "../app.js";
+import { api, navigera } from "../app.js";
 import { oppnaPdf, ritaSida } from "../pdf.js";
+import { samtal } from "../tudi.js";
+import { kommIhagKurs } from "./fraga.js";
 
 const ZOOM = [0.75, 1, 1.25, 1.5, 2];
 
@@ -20,6 +23,7 @@ export default async function visa(main, { kursId, filId }) {
     return;
   }
   document.title = `${dok.titel} · StudFun`;
+  kommIhagKurs(kurs.id);
 
   const fran = Number(new URLSearchParams(location.search).get("sida"));
   let sida = Math.min(Math.max(fran || dok.senastSida || 1, 1), dok.sidor);
@@ -73,6 +77,8 @@ export default async function visa(main, { kursId, filId }) {
     lasLank.href = `/kurser/${kurs.id}/las/${dok.id}?sida=${sida}`;
     papper.setAttribute("aria-label", `Sida ${sida} av ${dok.sidor}. Texten på sidan kan läsas upp i läsläget.`);
     sidtext.textContent = sidtexter[sida - 1] || "";
+    duArPa.replaceChildren(ikon("dokument", 20), `Du är på sida ${sida}`);
+    visaTudi.lastChild.textContent = `Fråga Tudi om sida ${sida}`;
     if (!pdf) return;
     status.replaceChildren(h("p", { role: "status", class: "sf-hjalp" }, `Hämtar sida ${sida} …`));
     try {
@@ -112,10 +118,48 @@ export default async function visa(main, { kursId, filId }) {
   const stad = new MutationObserver(() => {
     if (main.isConnected) return;
     removeEventListener("resize", vidStorlek);
+    tudi.stang();
     pdf?.loadingTask.destroy();
     stad.disconnect();
   });
   stad.observe(document.getElementById("app"), { childList: true });
+
+  /* Tudi-panelen. Öppen från början på dator, hopfälld på mobil. */
+  async function sidbild() {
+    if (!pdf) return undefined;
+    const c = document.createElement("canvas");
+    await ritaSida(pdf, sida, c, 1100 / Math.min(window.devicePixelRatio || 1, 2)); // ungefär 1100 px bred bild
+    return c.toDataURL("image/jpeg", 0.75);
+  }
+  const tudi = samtal({
+    kursId: kurs.id,
+    serSidan: true,
+    etikett: "Din fråga om sidan",
+    platshallare: "Till exempel: Vad visar bilden?",
+    tomText: "Fråga något om sidan du tittar på. Tudi ser sidan och svarar utifrån ditt material.",
+    kontext: async () => ({ sida: { dokId: dok.id, nr: sida }, bild: await sidbild().catch(() => undefined) }),
+    oppnaKalla: k => (k.dokId === dok.id ? ga(k.sida) : navigera(`/kurser/${kurs.id}/visa/${k.dokId}?sida=${k.sida}`)),
+  });
+  const duArPa = h("p", { class: "sf-du-ar-pa", "aria-live": "polite" });
+  const forklara = h("button", { type: "button", class: "sf-btn sf-btn--accent", onclick: () => tudi.skicka({ fraga: "Förklara den här sidan." }, "Förklara den här sidan.", false) }, "Förklara den här sidan");
+  const fallIhop = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-expanded": "true", "aria-controls": "tudi-panel" }, "Fäll ihop");
+  const visaTudi = h("button", { type: "button", class: "sf-btn sf-btn--primar sf-visa-tudi", "aria-expanded": "false", "aria-controls": "tudi-panel" },
+    h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte sf-tudi-ansikte--liten" }), h("span", {}, "Fråga Tudi"));
+  const panel = h("aside", { id: "tudi-panel", class: "sf-tudi-panel", "aria-label": "Tudi" },
+    h("div", { class: "sf-rad-mellan" },
+      h("div", { class: "sf-rad sf-rad--tat" }, h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }), h("span", { class: "sf-rad-rubrik" }, "Tudi")),
+      fallIhop),
+    duArPa, forklara, tudi.el);
+  let panelOppen = matchMedia("(min-width: 1024px)").matches;
+  function ritaPanel(fokus) {
+    panel.hidden = !panelOppen;
+    visaTudi.hidden = panelOppen;
+    if (fokus) (panelOppen ? forklara : visaTudi).focus();
+  }
+  fallIhop.addEventListener("click", () => { panelOppen = false; ritaPanel(true); });
+  visaTudi.addEventListener("click", () => { panelOppen = true; ritaPanel(true); tudi.ladda(); });
+  ritaPanel(false);
+  if (panelOppen) tudi.ladda();
 
   const form = h("form", { class: "sf-rad sf-rad--tat", novalidate: true },
     h("label", { for: "v-sida", class: "sf-etikett" }, "Gå till sida"), sidFalt,
@@ -134,8 +178,8 @@ export default async function visa(main, { kursId, filId }) {
           h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten sf-btn--ruta", "aria-label": "Zooma ut", onclick: () => zooma(-1) }, "−"),
           zoomText,
           h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten sf-btn--ruta", "aria-label": "Zooma in", onclick: () => zooma(1) }, "+")),
-        lasLank)),
-    yta);
+        lasLank, visaTudi)),
+    h("div", { class: "sf-visare-kropp" }, yta, panel));
   rita();
   ladda();
 }

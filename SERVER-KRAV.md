@@ -17,6 +17,8 @@ Det här behöver StudFun 1.0 på servern. Läs det tillsammans med Del A i `STU
 * Från steg 3 behöver servern miljövariabeln `OPENAI_API_KEY`. Utan den laddas filer upp, men de blir aldrig klara för Tudi.
 * Nyckeln läggs i tjänstens miljöfil, som bara StudFun 1.0:s användare kan läsa. Den får aldrig ligga i koden eller i git.
 * Servern behöver kunna nå `api.openai.com` på port 443 utåt.
+* Modellerna går att byta utan ny kod: `TUDI_MODELL` (standard `gpt-4o-mini`, måste kunna läsa bilder och svara i JSON‑schema), `TAL_MODELL` (standard `gpt-4o-mini-transcribe`) och `VEKTOR_MODELL` (standard `text-embedding-3-small`). Byts vektormodellen måste alla filer laddas upp igen.
+* Taken per student och dag: 40 frågor till Tudi (en fråga med bild räknas som två), 40 tal till text och 50 000 tecken ny uppläsning. De står överst i `tudi.js` och `upplasning.js`.
 
 ## Datamappen
 

@@ -174,7 +174,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
       const r = await fetch(`${CONFIG.openaiBase}/v1/embeddings`, {
         method: "POST",
         headers: { Authorization: `Bearer ${CONFIG.openaiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: CONFIG.vektorModell, input: del.map(b => b.text) }),
+        body: JSON.stringify({ model: CONFIG.vektorModell, input: del.map(b => b.text), dimensions: CONFIG.vektorDim }),
         signal: AbortSignal.timeout(60_000),
       });
       if (!r.ok) throw Object.assign(new Error("openai"), { code: `OPENAI_${r.status}` });

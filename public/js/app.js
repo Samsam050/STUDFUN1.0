@@ -9,6 +9,7 @@ import kurs from "./sidor/kurs.js";
 import laddaUpp from "./sidor/ladda-upp.js";
 import visare from "./sidor/visare.js";
 import laslage from "./sidor/laslage.js";
+import fraga from "./sidor/fraga.js";
 
 /* kvitto: ett meddelande som nästa sida visar en gång, till exempel "Kursen är skapad" */
 export const app = { jag: null, kvitto: null };
@@ -24,6 +25,8 @@ const SIDOR = [
   { re: /^\/kurser\/(?<kursId>\d+)\/ladda-upp$/, sida: laddaUpp, titel: "Nytt material", meny: "kurser" },
   { re: /^\/kurser\/(?<kursId>\d+)\/visa\/(?<filId>\d+)$/, sida: visare, titel: "Visaren", utanSkal: true },
   { re: /^\/kurser\/(?<kursId>\d+)\/las\/(?<filId>\d+)$/, sida: laslage, titel: "Läsläget", meny: "kurser" },
+  { re: /^\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
+  { re: /^\/kurser\/(?<kursId>\d+)\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
   { re: /^\/installningar$/, sida: installningar, titel: "Inställningar", meny: "installningar" },
 ];
 
@@ -32,6 +35,7 @@ const MENY = [
   { id: "hem", text: "Hem", ikon: "hem", adress: "/" },
   /* ?meny: har studenten bara en kurs öppnas den direkt */
   { id: "kurser", text: "Mina kurser", kort: "Kurser", ikon: "kurser", adress: "/kurser?meny" },
+  { id: "fraga", text: "Fråga Tudi", ikon: "chatt", adress: "/fraga" },
   { id: "installningar", text: "Inställningar", ikon: "installningar", adress: "/installningar", baraDator: true },
 ];
 

@@ -315,7 +315,7 @@ select.sf-falt { padding-right: 44px; }
 .sf-uppladdning-rad:has(.sf-medd-stor--klar) { background: var(--sf-gron-100); border-color: var(--sf-klar-kant); }
 .sf-medd-stor--fel svg { color: var(--sf-fel); flex: none; }
 .sf-medd-rubrik { font-size: var(--sf-fs-2); font-weight: 600; }
-.sf-medd-tudi { width: 96px; }
+.sf-klar-tudi { width: 96px; }
 
 /* Visaren */
 .sf-rad--tat { gap: var(--sf-s-6) var(--sf-s-8); flex-wrap: wrap; }
@@ -410,6 +410,63 @@ select.sf-falt { padding-right: 44px; }
   .sf-visare-huvud [role="toolbar"] { flex-wrap: wrap; }
 }
 
+/* Tudi */
+.sf-rad--topp { align-items: flex-start; }
+.sf-tudi-ansikte { width: 44px; height: 44px; flex: none; object-fit: cover; object-position: top; border-radius: var(--sf-r-12); background: var(--sf-gron-100); }
+.sf-tudi-ansikte--stor { width: 64px; height: 64px; border-radius: var(--sf-r-18); }
+.sf-tudi-ansikte--liten { width: 28px; height: 28px; border-radius: var(--sf-r-8); }
+.sf-chatt { max-width: var(--sf-innehall-max); margin: 0 auto; display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sf-s-32); }
+.sf-chatt-huvud { flex: 999 1 520px; min-width: 0; max-width: 820px; display: flex; flex-direction: column; gap: var(--sf-s-20); }
+.sf-chatt-topp { padding-bottom: var(--sf-s-20); border-bottom: 1px solid var(--sf-kant); }
+.sf-chatt-topp h1 { font-size: var(--sf-fs-1); }
+.sf-tudi-laser { flex: 1 1 260px; max-width: 340px; box-shadow: none; }
+.sf-tudi-laser h2 { font-size: var(--sf-fs-4); }
+.sf-medd--info { background: var(--sf-vanta-bg); border: 1px solid var(--sf-kant); }
+.sf-samtal-ruta { display: flex; flex-direction: column; gap: var(--sf-s-20); min-height: 0; }
+.sf-samtal { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sf-s-24); }
+.sf-samtal-tom { display: flex; flex-direction: column; gap: var(--sf-s-12); padding: var(--sf-s-20); border: 2px dashed var(--sf-kant-streckad); border-radius: var(--sf-r-20); background: var(--sf-yta); }
+.sf-medd-du { align-self: flex-end; max-width: 85%; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sf-s-6); }
+.sf-medd-tudi { display: flex; gap: var(--sf-s-14); align-items: flex-start; }
+.sf-bubbla { margin: 0; font-size: 18px; line-height: 1.65; }
+.sf-bubbla--du { padding: var(--sf-s-14) var(--sf-s-20); border-radius: 20px 20px 6px 20px; background: var(--sf-gron); color: #fff; overflow-wrap: anywhere; }
+.sf-bubbla--tudi {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--sf-s-14); padding: var(--sf-s-18) var(--sf-s-20);
+  background: var(--sf-yta); border: 1px solid var(--sf-kant); border-radius: 6px 20px 20px 20px; box-shadow: var(--sf-skugga-1);
+}
+.sf-bubbla--tudi p { max-width: 62ch; overflow-wrap: anywhere; }
+.sf-bubbla--tanker { padding: var(--sf-s-14) var(--sf-s-20); border-radius: 6px 20px 20px 20px; background: var(--sf-yta-2); color: var(--sf-text-2); }
+.sf-bubbla-namn { font-size: var(--sf-fs-etikett); font-weight: 600; color: var(--sf-gron); }
+.sf-bubbla-fot { display: flex; flex-wrap: wrap; gap: var(--sf-s-8); padding-top: var(--sf-s-14); border-top: 1px solid var(--sf-kant); }
+.sf-kalla {
+  display: inline-flex; align-items: center; gap: var(--sf-s-8); min-height: var(--sf-klickyta); padding: 0 var(--sf-s-14);
+  border-radius: var(--sf-r-12); background: var(--sf-gron-100); color: var(--sf-gron); font: 600 var(--sf-fs-liten) var(--sf-font);
+  border: 2px solid transparent; cursor: pointer; text-align: left;
+}
+.sf-kalla:hover { border-color: var(--sf-gron); }
+.sf-btn--chip {
+  min-height: var(--sf-klickyta); padding: 0 var(--sf-s-16); font-size: var(--sf-fs-liten); font-weight: 500; border-radius: var(--sf-r-rund);
+  background: var(--sf-yta-2); color: var(--sf-text); border-color: var(--sf-kant);
+}
+.sf-btn--chip:hover { background: var(--sf-gron-100); border-color: var(--sf-gron); color: var(--sf-text); }
+.sf-fragaform { position: sticky; bottom: 0; display: flex; flex-direction: column; gap: var(--sf-s-10); padding: var(--sf-s-16) 0 var(--sf-s-20); background: var(--sf-gradde); }
+.sf-fragefalt { flex: 1 1 280px; min-height: 64px; padding: var(--sf-s-12) var(--sf-s-16); resize: vertical; line-height: 1.5; }
+.sf-lyssnar { display: flex; align-items: center; gap: var(--sf-s-10); padding: var(--sf-s-12) var(--sf-s-16); border-radius: var(--sf-r-12); background: var(--sf-orange-100); }
+
+/* Tudi bredvid sidan i visaren */
+.sf-visare-kropp { flex: 1 1 auto; min-height: 0; display: flex; }
+.sf-visare-kropp .sf-visare-yta { flex: 1 1 auto; }
+.sf-tudi-panel {
+  display: flex; flex-direction: column; gap: var(--sf-s-14); padding: var(--sf-s-16); background: var(--sf-yta);
+  overflow-y: auto; position: fixed; left: 0; right: 0; bottom: 0; height: 70vh; z-index: 25;
+  border-top: 1px solid var(--sf-kant); border-radius: var(--sf-r-24) var(--sf-r-24) 0 0; box-shadow: var(--sf-skugga-3);
+}
+.sf-tudi-panel .sf-fragaform { background: var(--sf-yta); padding-bottom: 0; }
+.sf-tudi-panel .sf-samtal { gap: var(--sf-s-18); }
+.sf-tudi-panel .sf-medd-tudi .sf-tudi-ansikte { display: none; }
+.sf-du-ar-pa { display: flex; align-items: center; gap: var(--sf-s-8); padding: var(--sf-s-10) var(--sf-s-14); border-radius: var(--sf-r-12); background: var(--sf-gron-50); font-weight: 600; color: var(--sf-gron); }
+.sf-visa-tudi { position: fixed; left: var(--sf-s-16); right: var(--sf-s-16); bottom: calc(var(--sf-s-16) + env(safe-area-inset-bottom)); z-index: 20; box-shadow: var(--sf-skugga-2); }
+.sf-visare-yta { padding-bottom: 96px; }
+
 @media (min-width: 1024px) {
   .sf-skal { flex-direction: row; }
   .sf-topp, .sf-flikrad { display: none; }
@@ -429,10 +486,13 @@ select.sf-falt { padding-right: 44px; }
   .sf-uppladdning { padding: 56px var(--sf-s-32); }
   .sf-uppladdning-rad { padding: var(--sf-s-28) var(--sf-s-32); }
   .sf-material-rad { padding: var(--sf-s-20) var(--sf-s-24); }
-  .sf-medd-tudi { width: 120px; }
+  .sf-klar-tudi { width: 120px; }
   .sf-visare-huvud { padding: var(--sf-s-12) var(--sf-s-24); }
   .sf-visare-yta { padding: var(--sf-s-24); }
   .sf-las-del { padding: var(--sf-s-40) var(--sf-s-48) var(--sf-s-32); }
+  .sf-tudi-panel { position: static; height: auto; flex: 0 0 400px; border-top: none; border-left: 1px solid var(--sf-kant); border-radius: 0; box-shadow: none; padding: var(--sf-s-20); }
+  .sf-visa-tudi { position: static; box-shadow: none; min-height: var(--sf-klickyta); padding: 0 var(--sf-s-14); font-size: var(--sf-fs-liten); }
+  .sf-visare-yta { padding-bottom: var(--sf-s-24); }
 
   .sf-inlogg { flex-direction: row; }
   .sf-inlogg-sida {

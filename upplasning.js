@@ -16,9 +16,10 @@ const INSTRUKTION = "Läs texten högt på svenska för en vuxen student som tyc
 const PROVTEXT = "Hej! Så här låter jag när jag läser upp ditt kursmaterial.";
 
 module.exports = function ({ db, CONFIG, Fel, rutt, konto }) {
+  /* mapp null: ljudet sparas inte, till exempel Tudis svar som bara läses en gång */
   async function ljud(ctx, mapp, rost, text) {
-    const fil = path.join(mapp, crypto.createHash("sha256").update(`${rost}\n${text}`).digest("hex") + ".mp3");
-    let data = await fs.promises.readFile(fil).catch(() => null);
+    const fil = mapp && path.join(mapp, crypto.createHash("sha256").update(`${rost}\n${text}`).digest("hex") + ".mp3");
+    let data = fil && await fs.promises.readFile(fil).catch(() => null);
     if (!data) {
       if (!CONFIG.openaiKey) throw new Fel(503, "Uppläsningen fungerar inte just nu.");
       if (!forbruka(db, ctx.user.id, "upplasning", text.length, TAK_PER_DAG)) {
@@ -35,8 +36,10 @@ module.exports = function ({ db, CONFIG, Fel, rutt, konto }) {
         throw new Fel(502, "Uppläsningen fungerar inte just nu.");
       }
       data = Buffer.from(await r.arrayBuffer());
-      await fs.promises.mkdir(mapp, { recursive: true, mode: 0o700 });
-      await fs.promises.writeFile(fil, data, { mode: 0o600 });
+      if (fil) {
+        await fs.promises.mkdir(mapp, { recursive: true, mode: 0o700 });
+        await fs.promises.writeFile(fil, data, { mode: 0o600 });
+      }
     }
     ctx.res.writeHead(200, { ...CONFIG.sakerhet, "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400", "Content-Length": data.length });
     ctx.res.end(data);
@@ -51,6 +54,14 @@ module.exports = function ({ db, CONFIG, Fel, rutt, konto }) {
     if (!text) throw new Fel(400, "Det finns ingen text att läsa upp.");
     if (text.length > MAX_TECKEN) throw new Fel(400, "Texten är för lång för att läsas upp på en gång.");
     await ljud(ctx, path.join(CONFIG.ttsDir, String(ctx.params.id)), konto.installningar(ctx.user.id).rost, text);
+  });
+
+  /* Läser upp ett svar från Tudi. Sparas inte, eftersom samma svar sällan läses två gånger. */
+  rutt("POST", "/api/upplas-svar", async ctx => {
+    const text = typeof ctx.body.text === "string" ? ctx.body.text.replace(/\s+/g, " ").trim() : "";
+    if (!text) throw new Fel(400, "Det finns ingen text att läsa upp.");
+    if (text.length > 2000) throw new Fel(400, "Texten är för lång för att läsas upp på en gång.");
+    await ljud(ctx, null, konto.installningar(ctx.user.id).rost, text);
   });
 
   /* Provar en röst i Inställningar. Samma mening för alla, så den sparas en gång per röst. */

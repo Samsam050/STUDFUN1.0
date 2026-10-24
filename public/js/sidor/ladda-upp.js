@@ -179,7 +179,7 @@ export default async function visa(main, { kursId }) {
         if (d.status === "fel") return fel("Det gick inte att göra i ordning filen", "Något gick fel hos oss. Radera filen i kursen och ladda upp den igen.");
       }
       el.replaceChildren(h("div", { class: "sf-medd-stor sf-medd-stor--klar", role: "status" },
-        h("img", { src: "/bilder/tudi.png", alt: "", class: "sf-medd-tudi" }),
+        h("img", { src: "/bilder/tudi.png", alt: "", class: "sf-klar-tudi" }),
         h("div", { class: "sf-stapel sf-stapel--luft sf-vaxer" },
           h("p", { class: "sf-medd-rubrik sf-gron-text" }, "Klart! Filen är redo."),
           h("p", {}, `${titel}, ${sidorText(antalSidor)}, finns nu i ${kursNu.namn}.`),

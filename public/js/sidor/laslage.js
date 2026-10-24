@@ -1,9 +1,10 @@
-/* Läsläget: texten i korta delar, uppläsning där ordet som läses markeras, tryck på ett ord,
-   tempo, textstorlek och läslinjal. Förklara och Ge exempel på ett ord kommer med Tudi i steg 5. */
+/* Läsläget: texten i korta delar, uppläsning där ordet som läses markeras, tryck på ett ord
+   (läs upp, förklara, ge exempel), tempo, textstorlek och läslinjal. */
 import { h, ikon, felMedForsok, laddar } from "../dom.js";
 import { api, app, tillampa } from "../app.js";
 import * as ljud from "../upplasning.js";
 import { delaUpp } from "../delar.js";
+import { kommIhagKurs } from "./fraga.js";
 
 const STORLEKAR = [20, 22, 26, 30];
 const TEMPON = [["langsamt", "Långsamt"], ["normalt", "Normalt"], ["snabbt", "Snabbt"]];
@@ -28,6 +29,7 @@ export default async function visa(main, { kursId, filId }) {
   }
   vantar.remove();
   document.title = `${dok.titel} · StudFun`;
+  kommIhagKurs(kurs.id);
   const D = delaUpp(sidor);
   if (!D.length) {
     main.append(h("div", { class: "sf-sida" }, h("h1", {}, dok.titel), h("p", {}, "Den här filen har ingen text att läsa."),
@@ -70,6 +72,7 @@ export default async function visa(main, { kursId, filId }) {
   const nastaDel = h("button", { type: "button", class: "sf-btn sf-btn--primar", onclick: () => gaTillDel(delIdx + 1) }, "Nästa del", ikon("pil", 22));
   const felRuta = h("div", { class: "sf-topp-fel" });
   const originalLank = h("a", { class: "sf-btn sf-btn--sekundar" }, "Visa originalet");
+  const fragaLank = h("a", { class: "sf-btn sf-btn--primar" }, ikon("chatt", 22), "Fråga Tudi om det här");
 
   text.addEventListener("keydown", e => {
     const flytt = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[e.key];
@@ -121,6 +124,7 @@ export default async function visa(main, { kursId, filId }) {
     forraDel.disabled = delIdx === 0;
     nastaDel.disabled = delIdx === D.length - 1;
     originalLank.href = `/kurser/${kurs.id}/visa/${dok.id}?sida=${del.sida}`;
+    fragaLank.href = `/kurser/${kurs.id}/fraga?fil=${dok.id}&sida=${del.sida}`;
     history.replaceState(null, "", `/kurser/${kurs.id}/las/${dok.id}?sida=${del.sida}`);
     sparaPosition(del.sida);
     requestAnimationFrame(ritaLinjal);
@@ -156,14 +160,24 @@ export default async function visa(main, { kursId, filId }) {
       try { await ljud.spela(await ljud.hamta(dok.id, w), ljud.TEMPO[app.jag.installningar.tempo] || 1); }
       catch (e) { info.textContent = e.message; }
     });
+    /* Förklara och Ge exempel: Tudi svarar utifrån kursmaterialet, med meningen som sammanhang */
+    const fraga = typ => async () => {
+      info.textContent = "Tudi tänker …";
+      try {
+        const r = await api("POST", `/api/kurser/${kurs.id}/ord`, { ord: w, typ, mening: D[delIdx].meningar[meningAv[i]], sida: { dokId: dok.id, nr: D[delIdx].sida } });
+        info.textContent = r.svar + (r.kallor.length ? ` (${r.kallor.map(k => `sida ${k.sida}`).join(", ")})` : "");
+      } catch (e) { info.textContent = e.message; }
+    };
     meny.setAttribute("aria-label", `Val för ordet ${w}`);
     meny.replaceChildren(
       h("div", { class: "sf-rad-mellan" }, h("span", { class: "sf-ordmeny-ord" }, w),
         h("button", { type: "button", class: "sf-btn sf-btn--liten sf-btn--text", onclick: () => stangMeny() }, "Stäng")),
-      h("div", { class: "sf-knapprad" }, lasKnapp),
+      h("div", { class: "sf-knapprad" }, lasKnapp,
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: fraga("forklara") }, "Förklara"),
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: fraga("exempel") }, "Ge exempel")),
       info);
     meny.style.top = `${b.offsetTop + b.offsetHeight + 10}px`;
-    meny.style.left = `${Math.max(0, Math.min(b.offsetLeft - 8, textRuta.clientWidth - 340))}px`;
+    meny.style.left = `${Math.max(0, Math.min(b.offsetLeft - 8, textRuta.clientWidth - 360))}px`;
     meny.hidden = false;
     lasKnapp.focus();
   }
@@ -276,7 +290,7 @@ export default async function visa(main, { kursId, filId }) {
         h("a", { href: `/kurser/${kurs.id}`, class: "sf-tillbaka" }, ikon("tillbaka", 20), `Tillbaka till ${kurs.namn}`),
         h("h1", {}, dok.titel),
         h("p", { class: "sf-hjalp" }, dok.sidor === 1 ? "1 sida" : `${dok.sidor} sidor`)),
-      originalLank),
+      h("div", { class: "sf-knapprad" }, fragaLank, originalLank)),
     h("div", { class: "sf-verktyg", role: "toolbar", "aria-label": "Uppläsning och visning" },
       spelKnapp,
       h("div", { class: "sf-rad sf-rad--tat" }, h("span", { id: "tempo-etikett", class: "sf-verktyg-etikett" }, "Tempo"),
@@ -290,7 +304,7 @@ export default async function visa(main, { kursId, filId }) {
       textRuta,
       linjalRad,
       h("div", { class: "sf-rad-mellan sf-del-knappar" }, forraDel, nastaDel)),
-    h("p", { class: "sf-hjalp" }, "Tryck på ett ord för att få det uppläst. Piltangenterna flyttar mellan orden och flyttar läslinjalen.")));
+    h("p", { class: "sf-hjalp" }, "Tryck på ett ord för att få det uppläst, förklarat eller ett exempel. Piltangenterna flyttar mellan orden och flyttar läslinjalen.")));
   ritaKnapp();
   ritaDel();
 }

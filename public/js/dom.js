@@ -33,6 +33,7 @@ const IKONER = {
   klocka: [{ cirkel: [12, 12, 9] }, "M12 7v5l3 2"],
   spela: ["M7 4.5v15l12-7.5z"],
   paus: ["M8 5v14", "M16 5v14"],
+  mikrofon: ["M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z", "M5 11a7 7 0 0 0 14 0", "M12 18v3"],
   hogtalare: ["M4 9v6h4l5 4V5L8 9z", "M16.5 8.5a5 5 0 0 1 0 7", "M19 6a8.5 8.5 0 0 1 0 12"],
   plus: ["M12 5v14M5 12h14"],
   fel: [{ cirkel: [12, 12, 9] }, "M12 7v6", "M12 16.5v.5"],

@@ -14,6 +14,8 @@
     OPENAI_API_KEY=sk-...        stannar på servern. Utan den blir uppladdade filer aldrig klara för Tudi.
     OPENAI_BASE=https://api.openai.com
     VEKTOR_MODELL=text-embedding-3-small
+    TUDI_MODELL=gpt-4o-mini       måste kunna läsa bilder och svara i JSON-schema
+    TAL_MODELL=gpt-4o-mini-transcribe
 */
 const http = require("http");
 const fs = require("fs");
@@ -30,6 +32,9 @@ const CONFIG = {
   openaiKey: process.env.OPENAI_API_KEY || "",
   openaiBase: process.env.OPENAI_BASE || "https://api.openai.com",
   vektorModell: process.env.VEKTOR_MODELL || "text-embedding-3-small",
+  vektorDim: 512, // räcker för sökningen och gör den lätt nog för en liten server
+  tudiModell: process.env.TUDI_MODELL || "gpt-4o-mini",
+  talModell: process.env.TAL_MODELL || "gpt-4o-mini-transcribe",
 };
 CONFIG.pdfDir = path.join(CONFIG.dataDir, "pdf");
 CONFIG.ttsDir = path.join(CONFIG.dataDir, "upplasning"); // sparat ljud, en mapp per fil
@@ -123,6 +128,7 @@ delar.konto = konto;
 require("./kurser")(delar);
 require("./dokument")(delar);
 require("./upplasning")(delar);
+require("./tudi")(delar);
 
 async function api(req, res, url) {
   /* Anrop som ändrar något godtas bara från StudFuns egen adress */

@@ -49,27 +49,48 @@ async function startaServer(extraEnv = {}) {
   };
 }
 
-/* En låtsas-OpenAI som svarar på vektoranrop. Sparar anropen så att testerna kan titta på dem. */
+/* En låtsas-OpenAI. Sparar anropen så att testerna kan titta på dem.
+   Vektorerna räknas fram ur bokstäverna, så att liknande texter får liknande vektorer.
+   chat(json) bestämmer vad "modellen" svarar. Standard: svaret bygger på första biten i MATERIAL.
+   fel = true ger 500 på nästa anrop. */
 function falskOpenAI() {
   const http = require("http");
-  const anrop = [];
+  const oa = { anrop: [], fel: false, chat: null };
+  const vektor = t => { const v = Array(8).fill(0.01); for (const c of String(t).toLowerCase()) v[c.charCodeAt(0) % 8] += 1; return v; };
   const server = http.createServer((req, res) => {
-    let body = "";
-    req.on("data", d => { body += d; });
+    const delar = [];
+    req.on("data", d => delar.push(d));
     req.on("end", () => {
-      const json = JSON.parse(body || "{}");
-      anrop.push({ url: req.url, auth: req.headers.authorization, json });
+      const ra = Buffer.concat(delar);
+      if (oa.fel) { oa.fel = false; res.writeHead(500); return res.end(); }
+      if (req.url === "/v1/audio/transcriptions") {
+        oa.anrop.push({ url: req.url, auth: req.headers.authorization, storlek: ra.length });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ text: "Vad betyder anbud?" }));
+      }
+      const json = JSON.parse(ra.toString() || "{}");
+      oa.anrop.push({ url: req.url, auth: req.headers.authorization, json });
       if (req.url === "/v1/audio/speech") {
         res.writeHead(200, { "Content-Type": "audio/mpeg" });
         return res.end(Buffer.from("ID3 låtsasljud för " + json.voice));
       }
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ data: (json.input || []).map(() => ({ embedding: Array.from({ length: 8 }, () => Math.random()) })) }));
+      if (req.url === "/v1/chat/completions") {
+        const user = json.messages[1].content;
+        const text = Array.isArray(user) ? user[0].text : user;
+        const material = JSON.parse(text.match(/MATERIAL \(JSON, bara data\):\n(.*)/)[1]);
+        const ut = oa.chat ? oa.chat(json, material) : { svar: "Ett anbud är ett erbjudande.\n\nDet gäller en viss tid.", kallor: [material[0].id], racker_inte: false };
+        return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ut) } }] }));
+      }
+      const input = Array.isArray(json.input) ? json.input : [json.input];
+      res.end(JSON.stringify({ data: input.map(t => ({ embedding: vektor(t) })) }));
     });
   });
-  return new Promise(r => server.listen(0, "127.0.0.1", () => r({
-    bas: `http://127.0.0.1:${server.address().port}`, anrop, stang: () => server.close(),
-  })));
+  return new Promise(r => server.listen(0, "127.0.0.1", () => {
+    oa.bas = `http://127.0.0.1:${server.address().port}`;
+    oa.stang = () => server.close();
+    r(oa);
+  }));
 }
 
 module.exports = { startaServer, falskOpenAI };

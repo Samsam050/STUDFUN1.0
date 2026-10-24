@@ -1,8 +1,9 @@
 /* En kurs: namn och termin, materialet och radera kursen.
-   Fråga Tudi kommer i steg 5 och Öva i steg 6. */
+   Öva kommer i steg 6. */
 import { h, ikon, meddelande, felMedForsok, dialog, laddar } from "../dom.js";
 import { api, app } from "../app.js";
 import { kursDialog } from "../kurs-delar.js";
+import { kommIhagKurs } from "./fraga.js";
 
 export default async function visa(main, { kursId }) {
   let kurs;
@@ -19,6 +20,7 @@ export default async function visa(main, { kursId }) {
     return;
   }
   document.title = `${kurs.namn} · StudFun`;
+  kommIhagKurs(kurs.id);
 
   const rubrik = h("h1", {}, kurs.namn);
   const termin = h("p", { class: "sf-ingress sf-text-2" }, kurs.termin);
@@ -52,6 +54,8 @@ export default async function visa(main, { kursId }) {
 
   /* Materialet. Uppdateras av sig själv medan någon fil bearbetas. */
   const materialRuta = h("div", {}, laddar("Hämtar materialet …", 1));
+  const fragaRuta = h("span", { class: "sf-knapprad" });
+  const fragaSparr = h("p", { id: "fraga-sparr", class: "sf-hjalp", hidden: true }, "Fråga Tudi går att använda när en PDF i kursen är klar.");
   const meddela = h("p", { class: "sf-dold", "aria-live": "polite" });
   let forra = new Map();
   async function hamtaMaterial() {
@@ -61,6 +65,12 @@ export default async function visa(main, { kursId }) {
     for (const d of lista) if (forra.get(d.id) === "bearbetas" && d.status === "klar") meddela.textContent = `${d.titel} är klar.`;
     forra = new Map(lista.map(d => [d.id, d.status]));
     materialRuta.replaceChildren(lista.length ? h("ul", { class: "sf-lista sf-material" }, lista.map(materialRad)) : tomKurs());
+    /* Fråga Tudi är spärrad, med en förklaring, tills en PDF är klar */
+    const klar = lista.some(d => d.status === "klar");
+    fragaRuta.replaceChildren(klar
+      ? h("a", { href: `/kurser/${kurs.id}/fraga`, class: "sf-btn sf-btn--primar" }, ikon("chatt", 22), "Fråga Tudi")
+      : h("button", { type: "button", class: "sf-btn sf-btn--primar", disabled: true, "aria-describedby": "fraga-sparr" }, ikon("chatt", 22), "Fråga Tudi"));
+    fragaSparr.hidden = klar;
     if (lista.some(d => d.status === "bearbetas")) setTimeout(() => { if (materialRuta.isConnected) hamtaMaterial(); }, 3000);
   }
   const tomKurs = () => h("div", { class: "sf-tom" },
@@ -112,7 +122,9 @@ export default async function visa(main, { kursId }) {
         h("div", { class: "sf-stapel" }, rubrik, termin),
         h("div", { class: "sf-knapprad" },
           h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--accent" }, ikon("laddaUpp", 22), "Ladda upp PDF"),
-          h("button", { type: "button", class: "sf-btn sf-btn--sekundar", onclick: andra }, "Ändra namn och termin")))),
+          fragaRuta,
+          h("button", { type: "button", class: "sf-btn sf-btn--sekundar", onclick: andra }, "Ändra namn och termin"))),
+      fragaSparr),
     status,
     h("section", { class: "sf-stapel sf-stapel--luft", "aria-labelledby": "material-rubrik" },
       h("h2", { id: "material-rubrik" }, "Material"), materialRuta, meddela),
