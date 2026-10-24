@@ -7,7 +7,7 @@ const path = require("path");
 async function startaServer(extraEnv = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studfun-test-"));
   const port = 20000 + Math.floor(Math.random() * 20000);
-  const origin = `http://localhost:${port}`;
+  const origin = extraEnv.APP_ORIGIN || `http://localhost:${port}`;
   const flaggor = process.execArgv.filter(a => a.includes("sqlite"));
   const proc = spawn(process.execPath, [...flaggor, path.join(__dirname, "..", "server.js")], {
     env: { ...process.env, OPENAI_API_KEY: "", PORT: String(port), DATA_DIR: dataDir, APP_ORIGIN: origin, ...extraEnv },

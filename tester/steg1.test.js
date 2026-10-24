@@ -23,11 +23,29 @@ test("skapa konto kräver godkännande, giltig mejl och minst 10 tecken", async 
   assert.equal(igen.status, 409);
 });
 
-test("kakan är HttpOnly, Secure, SameSite=Lax och sparas bara som hash", async () => {
-  const r = await s.anrop("POST", "/api/konto", { data: { mejl: "kaka@exempel.se", losen: "ett langt losenord", godkant: true } });
+test("på https är kakan __Host-, HttpOnly, Secure och SameSite=Lax", async () => {
+  const https = await startaServer({ APP_ORIGIN: "https://studfun.exempel.se" });
+  try {
+    const r = await https.anrop("POST", "/api/konto", { data: { mejl: "kaka@exempel.se", losen: "ett langt losenord", godkant: true } });
+    const satt = r.headers.get("set-cookie");
+    assert.match(satt, /^__Host-sf=/);
+    for (const del of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) assert.ok(satt.includes(del), del);
+    assert.equal((await https.anrop("GET", "/api/jag", { kaka: r.kaka })).status, 200);
+    assert.equal((await https.anrop("GET", "/api/jag", { kaka: r.kaka.replace("__Host-sf", "sf") })).status, 401, "på https godtas bara __Host-kakan");
+  } finally { https.stang(); }
+});
+
+test("lokalt på http är kakan HttpOnly och SameSite=Lax men inte Secure, så att Safari sparar den", async () => {
+  const r = await s.anrop("POST", "/api/konto", { data: { mejl: "kaka.lokal@exempel.se", losen: "ett langt losenord", godkant: true } });
   const satt = r.headers.get("set-cookie");
-  assert.match(satt, /^__Host-sf=/);
-  for (const del of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) assert.ok(satt.includes(del), del);
+  assert.match(satt, /^sf=/);
+  for (const del of ["HttpOnly", "SameSite=Lax", "Path=/"]) assert.ok(satt.includes(del), del);
+  assert.ok(!satt.includes("Secure"));
+  assert.equal((await s.anrop("GET", "/api/jag", { kaka: r.kaka })).status, 200);
+});
+
+test("kakan sparas bara som hash i databasen", async () => {
+  const r = await s.anrop("POST", "/api/konto", { data: { mejl: "kaka@exempel.se", losen: "ett langt losenord", godkant: true } });
   const token = r.kaka.split("=")[1];
   const db = fs.readFileSync(path.join(s.dataDir, "studfun.db")).toString("latin1") +
     (fs.existsSync(path.join(s.dataDir, "studfun.db-wal")) ? fs.readFileSync(path.join(s.dataDir, "studfun.db-wal")).toString("latin1") : "");
@@ -60,7 +78,7 @@ test("anrop utan inloggning nekas på varje skyddad adress", async () => {
     ["POST", "/api/radera-material", {}], ["DELETE", "/api/konto"],
   ]) {
     assert.equal((await s.anrop(metod, adress, { data })).status, 401, `${metod} ${adress}`);
-    assert.equal((await s.anrop(metod, adress, { data, kaka: "__Host-sf=pahittad" })).status, 401, `${metod} ${adress} med falsk kaka`);
+    assert.equal((await s.anrop(metod, adress, { data, kaka: "sf=pahittad; __Host-sf=pahittad" })).status, 401, `${metod} ${adress} med falsk kaka`);
   }
 });
 

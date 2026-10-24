@@ -8,7 +8,6 @@ const { promisify } = require("util");
 const { transaktion } = require("./db");
 const scrypt = promisify(crypto.scrypt);
 
-const KAKA = "__Host-sf";
 const SESSION_TID = 30 * 24 * 3600 * 1000;
 const GODKANNANDE_VERSION = "2026-10-24";
 const LOSEN_MIN = 10, LOSEN_MAX = 200;
@@ -46,12 +45,16 @@ async function stammer(losen, lagrad) {
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
 const mejlOk = m => typeof m === "string" && m.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m);
 
-module.exports = function ({ db, Fel, rutt, raderaPdf }) {
+module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
+  /* På servern (https) är kakan Secure och heter __Host-sf, så att den bara skickas krypterat och inte kan sättas av en underdomän.
+     Lokalt på http går det inte: Safari sparar inte Secure-kakor på http, inte ens på localhost. */
+  const HTTPS = CONFIG.origin.startsWith("https:");
+  const KAKA = HTTPS ? "__Host-sf" : "sf";
   /* Används för okända mejladresser, så att svaret tar lika lång tid som för riktiga konton */
   const attrapp = hasha(crypto.randomBytes(16).toString("hex"));
 
   function kaka(ctx, varde, maxAge) {
-    ctx.headers["Set-Cookie"] = `${KAKA}=${varde}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+    ctx.headers["Set-Cookie"] = `${KAKA}=${varde}; Path=/; HttpOnly;${HTTPS ? " Secure;" : ""} SameSite=Lax; Max-Age=${maxAge}`;
   }
   function loggaIn(ctx, userId) {
     const token = crypto.randomBytes(32).toString("base64url");

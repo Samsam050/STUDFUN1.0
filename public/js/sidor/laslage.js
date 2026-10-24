@@ -246,11 +246,13 @@ export default async function visa(main, { kursId, filId }) {
         const forsta = meningAv.indexOf(i);
         const vikter = ord.filter((_, k) => meningAv[k] === i).map(b => vikt(b.textContent));
         const summa = vikter.reduce((a, b) => a + b, 0);
-        await ljud.spela(url, ljud.TEMPO[app.jag.installningar.tempo] || 1, andel => {
-          let acc = 0, k = 0;
-          while (k < vikter.length - 1 && (acc + vikter[k]) / summa < andel) acc += vikter[k++];
-          markera(forsta + k);
-        });
+        try {
+          await ljud.spela(url, ljud.TEMPO[app.jag.installningar.tempo] || 1, andel => {
+            let acc = 0, k = 0;
+            while (k < vikter.length - 1 && (acc + vikter[k]) / summa < andel) acc += vikter[k++];
+            markera(forsta + k);
+          });
+        } catch (e) { if (mitt === korning) { stoppa(); visaLjudFel(e.message, i); } return; }
         if (mitt !== korning) return;
       }
       if (delIdx >= D.length - 1) break;

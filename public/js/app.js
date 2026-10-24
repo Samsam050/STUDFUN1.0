@@ -64,7 +64,7 @@ export async function api(metod, adress, data) {
     throw new Error("Det gick inte att nå StudFun. Kontrollera internetanslutningen och försök igen.");
   }
   const json = await svar.json().catch(() => ({}));
-  if (svar.status === 401 && app.jag) { app.jag = null; navigera("/logga-in"); }
+  if (svar.status === 401 && app.jag) { app.jag = null; app.kvitto = "Du är utloggad. Logga in igen."; navigera("/logga-in"); }
   if (!svar.ok) {
     const e = new Error(json.fel || "Något gick fel. Försök igen om en stund.");
     e.status = svar.status;

@@ -15,7 +15,7 @@ Utan `OPENAI_API_KEY` går det att ladda upp PDF:er, men de blir aldrig klara f�
 OPENAI_API_KEY=sk-... npm start
 ```
 
-Öppna sedan http://localhost:8788 i Chrome eller Firefox. Inloggningskakan är `Secure`, och Safari sparar den inte på `http://localhost`.
+Öppna sedan http://localhost:8788 (eller http://127.0.0.1:8788) i valfri webbläsare. Lokalt på http är inloggningskakan inte `Secure`, eftersom Safari då inte sparar den. På servern sätts `APP_ORIGIN` till en https-adress, och då är kakan `Secure` och heter `__Host-sf`.
 
 ## Testa
 

@@ -103,6 +103,12 @@ export default function (main) {
     try {
       app.jag = await api("POST", ny ? "/api/konto" : "/api/logga-in",
         ny ? { mejl: m, losen: losen.value, godkant: true } : { mejl: m, losen: losen.value });
+      /* Kontrollera att webbläsaren sparade inloggningen, annars hamnar studenten tillbaka här utan förklaring */
+      const sparad = await fetch("/api/jag").then(r => r.ok, () => false);
+      if (!sparad) {
+        app.jag = null;
+        throw new Error("Webbläsaren sparade inte inloggningen. Kontrollera att kakor är tillåtna för den här sidan, och försök igen.");
+      }
       tillampa(app.jag.installningar);
       navigera("/");
     } catch (err) {
@@ -112,6 +118,7 @@ export default function (main) {
   }
 
   uppdatera();
+  if (app.kvitto) { toppFel.replaceChildren(meddelande("klar", app.kvitto)); app.kvitto = null; }
   main.className = "sf-inlogg";
   main.append(
     h("aside", { class: "sf-inlogg-sida sf-mork" },
