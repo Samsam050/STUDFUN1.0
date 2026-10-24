@@ -49,13 +49,25 @@ async function startaServer(extraEnv = {}) {
   };
 }
 
+/* Texten i ett anrop till Responses API, allt efter systemprompten */
+const inneText = json => json.input.slice(1).map(m => (Array.isArray(m.content) ? m.content.map(c => c.text || "").join("\n") : m.content)).join("\n\n");
+
+/* Standardsvar från Responses API, efter vilket JSON-schema anropet ber om */
+function responsSvar(json) {
+  const format = json.text?.format?.name;
+  if (format === "avsnitt") return { sidor: "1–1", rubrik: "Avtal", sammanfattning: "Avsnittet handlar om anbud och accept.", begrepp: ["anbud", "accept"] };
+  if (format === "dokument") return { kort: "Dokumentet handlar om avtal.", sammanfattning: "Om hur avtal sluts med anbud och accept.", delar: [{ sidor: "1–2", handlar_om: "Anbud och accept." }] };
+  return "Ett **anbud** är ett erbjudande [s. 1].";
+}
+
 /* En låtsas-OpenAI. Sparar anropen så att testerna kan titta på dem.
    Vektorerna räknas fram ur bokstäverna, så att liknande texter får liknande vektorer.
+   svar(json) bestämmer vad Responses API svarar (text eller objekt), annars responsSvar.
    chat(json) bestämmer vad "modellen" svarar. Standard: svaret bygger på första biten i MATERIAL.
    fel = n ger 500 på de n nästa anropen. Servern försöker en gång till, så 2 får ett anrop att misslyckas helt. */
 function falskOpenAI() {
   const http = require("http");
-  const oa = { anrop: [], fel: false, chat: null, ova: null, ratta: null };
+  const oa = { anrop: [], fel: 0, chat: null, ova: null, ratta: null, svar: null };
   const vektor = t => { const v = Array(8).fill(0.01); for (const c of String(t).toLowerCase()) v[c.charCodeAt(0) % 8] += 1; return v; };
   const server = http.createServer((req, res) => {
     const delar = [];
@@ -75,6 +87,14 @@ function falskOpenAI() {
         return res.end(Buffer.from("ID3 låtsasljud för " + json.voice));
       }
       res.writeHead(200, { "Content-Type": "application/json" });
+      if (req.url === "/v1/responses") {
+        const ut = (oa.svar && oa.svar(json)) ?? responsSvar(json);
+        return res.end(JSON.stringify({
+          status: "completed",
+          output: [{ type: "reasoning" }, { type: "message", content: [{ type: "output_text", text: typeof ut === "string" ? ut : JSON.stringify(ut) }] }],
+          usage: { input_tokens: 100, input_tokens_details: { cached_tokens: 0 }, output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } },
+        }));
+      }
       if (req.url === "/v1/chat/completions") {
         const schema = json.response_format?.json_schema?.name;
         if (schema === "rattning") {
@@ -107,4 +127,4 @@ function falskOpenAI() {
   }));
 }
 
-module.exports = { startaServer, falskOpenAI };
+module.exports = { startaServer, falskOpenAI, inneText };

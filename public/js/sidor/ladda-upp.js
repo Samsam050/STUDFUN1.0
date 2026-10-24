@@ -163,9 +163,9 @@ export default async function visa(main, { kursId }) {
       } finally { pdf.loadingTask.destroy(); } // pdf.js 6: dokumentet stängs via sin laddning
 
       avbryt.remove();
-      forlopp("Bearbetas …", 1);
+      forlopp("Tudi läser igenom materialet …", 1);
       notis.hidden = false;
-      notis.textContent = "Tudi gör i ordning texten. Du kan lämna sidan, vi sparar allt.";
+      notis.textContent = "Tudi läser igenom materialet. Du kan lämna sidan, vi sparar allt.";
       vantaPaKlar(kurs, antalSidor); // nästa fil i kön behöver inte vänta på det här
     }
 

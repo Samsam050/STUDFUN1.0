@@ -64,7 +64,36 @@ test("en PDF laddas upp, sparas med slumpat namn och får vektorer", async () =>
   d.close();
   assert.deepEqual(bitar.map(x => x.sida), [1, 2]);
   assert.ok(bitar.every(x => x.vektor && x.vektor.length === 8 * 4), "varje bit har en vektor");
-  assert.ok(oa.anrop.every(x => x.auth === "Bearer test-nyckel" && x.url === "/v1/embeddings"));
+  assert.ok(oa.anrop.every(x => x.auth === "Bearer test-nyckel" && ["/v1/embeddings", "/v1/responses"].includes(x.url)));
+
+  /* Sammanfattningen: ett avsnitt och hela dokumentet, med nano, minimal, store false och svarstak */
+  const sam = oa.anrop.filter(x => x.url === "/v1/responses");
+  assert.deepEqual(sam.map(x => x.json.text.format.name), ["avsnitt", "dokument"]);
+  for (const x of sam) {
+    assert.equal(x.json.model, "gpt-5-nano");
+    assert.equal(x.json.store, false);
+    assert.deepEqual(x.json.reasoning, { effort: "minimal" });
+    assert.ok(x.json.max_output_tokens > 0);
+    assert.equal(x.json.input[0].role, "developer");
+  }
+  assert.match(sam[0].json.input[1].content, /<material>[\s\S]*\[Sida 2\][\s\S]*<\/material>/);
+  const d2 = db();
+  const dok = d2.prepare("SELECT kort, sammanfattning, delar FROM documents WHERE id = ?").get(id);
+  const avs = d2.prepare("SELECT fran, till, rubrik FROM avsnitt WHERE document_id = ?").all(id);
+  const mat = d2.prepare("SELECT funktion, modell, student FROM ai_anrop").all();
+  d2.close();
+  assert.equal(dok.kort, "Dokumentet handlar om avtal.");
+  assert.deepEqual(JSON.parse(dok.delar), [{ sidor: "1–2", handlar_om: "Anbud och accept." }]);
+  assert.deepEqual(avs.map(a => ({ ...a })), [{ fran: 1, till: 2, rubrik: "Avtal" }]);
+  assert.ok(mat.some(m => m.funktion === "sammanfattning" && m.modell === "gpt-5-nano" && /^[a-f0-9]{16}$/.test(m.student)));
+  assert.ok(mat.some(m => m.funktion === "vektorer"));
+
+  /* Samma PDF igen: vektorerna och sammanfattningen återanvänds, inget nytt anrop */
+  const fore = oa.anrop.length;
+  const igen = await laddaUpp(a, kursA, [TEXT, TEXT + " Sida två."], "Samma igen");
+  assert.equal((await vantaPaStatus(a, igen.id, "klar")).status, "klar");
+  assert.equal(oa.anrop.length, fore);
+  assert.equal((await s.anrop("DELETE", `/api/dokument/${igen.id}`, { kaka: a })).status, 200);
 
   const lista = (await s.anrop("GET", `/api/kurser/${kursA}/dokument`, { kaka: a })).json.dokument;
   assert.ok(lista.some(x => x.id === id && x.titel === "Mitt hemliga filnamn"));

@@ -82,7 +82,7 @@ export default async function visa(main, { kursId }) {
       h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--accent sf-btn--sjalv" }, ikon("laddaUpp", 22), "Ladda upp din första PDF")));
   const STATUS = {
     klar: ["klar", "bock", "Klar"],
-    bearbetas: ["vantar", "klocka", "Bearbetas", "Tudi gör i ordning filen. Det brukar ta någon minut."],
+    bearbetas: ["vantar", "klocka", "Tudi läser", "Tudi läser igenom materialet. Det brukar ta någon minut."],
     fel: ["fel", "fel", "Gick inte att läsa", "Något gick fel när filen gjordes i ordning. Radera den och ladda upp den igen."],
   };
   function materialRad(d) {

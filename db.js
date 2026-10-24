@@ -139,6 +139,24 @@ const MIGRATIONER = [
    CREATE INDEX ai_cache_document ON ai_cache(document_id);
    CREATE INDEX ai_cache_course ON ai_cache(course_id);
    CREATE INDEX ai_cache_anvand ON ai_cache(anvand);`,
+  /* Sammanfattning vid uppladdning: en per avsnitt om ungefär 10 sidor, och en för hela dokumentet.
+     innehall känner igen samma PDF när samma student laddar upp den igen. */
+  `ALTER TABLE documents ADD COLUMN innehall TEXT;
+   ALTER TABLE documents ADD COLUMN kort TEXT;
+   ALTER TABLE documents ADD COLUMN sammanfattning TEXT;
+   ALTER TABLE documents ADD COLUMN delar TEXT;
+   CREATE INDEX documents_innehall ON documents(user_id, innehall);
+   CREATE TABLE avsnitt (
+     id INTEGER PRIMARY KEY,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+     fran INTEGER NOT NULL,
+     till INTEGER NOT NULL,
+     rubrik TEXT NOT NULL,
+     sammanfattning TEXT NOT NULL,
+     begrepp TEXT NOT NULL DEFAULT '[]'
+   );
+   CREATE INDEX avsnitt_document ON avsnitt(document_id);`,
 ];
 
 function oppna(dataDir) {
