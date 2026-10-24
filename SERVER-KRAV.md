@@ -17,8 +17,11 @@ Det här behöver StudFun 1.0 på servern. Läs det tillsammans med Del A i `STU
 * Från steg 3 behöver servern miljövariabeln `OPENAI_API_KEY`. Utan den laddas filer upp, men de blir aldrig klara för Tudi.
 * Nyckeln läggs i tjänstens miljöfil, som bara StudFun 1.0:s användare kan läsa. Den får aldrig ligga i koden eller i git.
 * Servern behöver kunna nå `api.openai.com` på port 443 utåt.
-* Modellerna går att byta utan ny kod: `TUDI_MODELL` (standard `gpt-4o-mini`, måste kunna läsa bilder och svara i JSON‑schema), `TAL_MODELL` (standard `gpt-4o-mini-transcribe`) och `VEKTOR_MODELL` (standard `text-embedding-3-small`). Byts vektormodellen måste alla filer laddas upp igen.
-* Taken per student och dag: 40 frågor till Tudi (en fråga med bild räknas som två), 40 tal till text, 50 000 tecken ny uppläsning, 10 nya omgångar quiz eller flashcards och 200 rättningar av korta svar. De står överst i `tudi.js`, `upplasning.js` och `ova.js`.
+* Modell och tänkande för varje AI‑funktion står i `.env` (se `.env.example` och `AI-ARKITEKTUR.md`): `MODEL_ORD`, `MODEL_SIDA`, `MODEL_CHATT`, `MODEL_SAMMANFATTNING`, `MODEL_BORJA`, `MODEL_OVA`, `MODEL_RATTA`, med `EFFORT_*` för tänkandet, samt `MODEL_EMBED`, `MODEL_TAL`, `TTS_MOTOR` och `MODEL_TTS`. Byts `MODEL_EMBED` måste alla filer laddas upp igen. `.env` läses bara om den finns bredvid `server.js`. Det som står i tjänstens miljöfil går före.
+* Prompterna ligger i `prompts/`, en fil per funktion. En ändrad prompt gäller direkt, utan omstart.
+* Alla anrop går till Responses API (`/v1/responses`) med `store: false`.
+* Taken per student och dag: Förklara den här sidan 60, ord 200, chatten 80, nya quiz 10, nya flashcards 10, rättningar av korta svar 200, Börja här 10, tal till text 40 och 50 000 tecken ny uppläsning. Svar ur cachen räknas inte. Taken står överst i `forklara.js`, `tudi.js`, `ova.js`, `borja.js` och `upplasning.js`.
+* Kostnaden per funktion och dag: `npm run kostnad` på servern (med samma `DATA_DIR`). Priserna står i `priser.json`.
 
 ## Datamappen
 

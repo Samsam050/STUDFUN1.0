@@ -6,18 +6,21 @@
 npm test
 ```
 
-Varje testfil startar en egen server med en tom datamapp och en låtsas‑OpenAI, så inga riktiga anrop görs och inget kostar. 77 tester, alla gröna den 24 oktober 2026.
+Varje testfil startar en egen server med en tom datamapp och en låtsas‑OpenAI, så inga riktiga anrop görs och inget kostar. Låtsas‑OpenAI:n svarar som Responses API. 90 tester, alla gröna den 24 oktober 2026, efter ombyggnaden enligt `AI-ARKITEKTUR.md`.
 
 | Fil | Tester | Vad |
 |---|---|---|
-| `tester/steg1.test.js` | 14 | Konto, inloggning, kakan, säkerhetshuvuden, radera konto |
+| `tester/steg1.test.js` | 16 | Konto, inloggning, kakan, säkerhetshuvuden, radera konto |
 | `tester/steg2.test.js` | 10 | Kurser och ägarkontroll |
-| `tester/steg3.test.js` | 11 | Ladda upp PDF, filtyp, gränser, PDF:en bara till ägaren |
-| `tester/steg4.test.js` | 9 | Sidtext, läsposition, uppläsning med sparat ljud och dagstak |
-| `tester/steg5.test.js` | 13 | Tudi med källor, styrning via dokument, bilder, tal till text |
-| `tester/steg6.test.js` | 11 | Quiz och flashcards, rättning, påhittade frågor |
+| `tester/steg3.test.js` | 11 | Ladda upp PDF, filtyp, gränser, PDF:en bara till ägaren, sammanfattning vid uppladdning och samma PDF igen |
+| `tester/steg4.test.js` | 8 | Sidtext, läsposition, uppläsning med sparat ljud och dagstak |
+| `tester/steg5.test.js` | 14 | Chatten: vad som skickas och i vilken ordning, sidhänvisningar som tas bort, styrning via dokument, tal till text, tak 80 |
+| `tester/steg6.test.js` | 12 | Quiz och flashcards, urval av sidor, rätt, delvis och fel, påhittade frågor, tak |
 | `tester/steg7.test.js` | 4 | Nästa steg och repetition |
-| `tester/angripare.test.js` | 5 | Alla adresser utan inloggning och från fel webbplats, och total radering |
+| `tester/ai.test.js` | 9 | Förklara den här sidan (bild, cache, sätt, tänkande), ett ord, mätning utan text, uppläsning och Börja här |
+| `tester/angripare.test.js` | 6 | Alla adresser utan inloggning och från fel webbplats, och total radering |
+
+**Inte prövat med riktiga PDF:er och riktiga modeller.** Avsnitt 11 i `AI-ARKITEKTUR.md` (textsida, slide med diagram, engelsk sida, något som inte står i materialet, en PDF som försöker styra Tudi, en inlämningsuppgift, stavfel, sidnummer och token från cache) behöver göras med en riktig nyckel. Låtsas‑OpenAI:n visar bara att rätt saker skickas och att svaren hanteras rätt.
 
 ## Byggpromptens angripartester
 
