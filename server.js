@@ -146,7 +146,7 @@ delar.konto = konto;
 require("./kurser")(delar);
 require("./dokument")(delar);
 require("./upplasning")(delar);
-delar.tudi = require("./tudi")(delar);
+require("./tudi")(delar);
 require("./forklara")(delar);
 require("./ova")(delar);
 require("./nasta")(delar);

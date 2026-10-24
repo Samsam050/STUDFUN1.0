@@ -57,17 +57,22 @@ function responsSvar(json) {
   const format = json.text?.format?.name;
   if (format === "avsnitt") return { sidor: "1–1", rubrik: "Avtal", sammanfattning: "Avsnittet handlar om anbud och accept.", begrepp: ["anbud", "accept"] };
   if (format === "dokument") return { kort: "Dokumentet handlar om avtal.", sammanfattning: "Om hur avtal sluts med anbud och accept.", delar: [{ sidor: "1–2", handlar_om: "Anbud och accept." }] };
+  const sidor = [...inneText(json).matchAll(/\[[^\]\n]*, s\. (\d+)\]/g)].map(m => Number(m[1]));
+  const sida = i => sidor[i % sidor.length] || 1;
+  if (format === "quiz") return { fragor: [0, 1, 2, 3, 4, 5, 6].map(i => ({ typ: "flerval", fraga: `Fråga ${i}?`, alternativ: ["Rätt", "Fel ett", "Fel två", "Fel tre"], ratt: 0, forklaring: "För att.", sida: sida(i) }))
+    .concat([7, 8, 9].map(i => ({ typ: "kort", fraga: `Vad kallas ett ja till ett anbud ${i}?`, facit: "accept", forklaring: "Ett ja kallas accept.", sida: sida(i) }))) };
+  if (format === "flashcards") return { kort: Array.from({ length: 15 }, (_, i) => ({ fram: `Begrepp ${i}`, bak: `Förklaring ${i}.`, sida: sida(i) })) };
+  if (format === "rattning") return { bedomning: "fel", aterkoppling: "Svaret saknar ordet accept." };
   return "Ett **anbud** är ett erbjudande [s. 1].";
 }
 
 /* En låtsas-OpenAI. Sparar anropen så att testerna kan titta på dem.
    Vektorerna räknas fram ur bokstäverna, så att liknande texter får liknande vektorer.
-   svar(json) bestämmer vad Responses API svarar (text eller objekt), annars responsSvar.
-   chat(json) bestämmer vad "modellen" svarar. Standard: svaret bygger på första biten i MATERIAL.
+   svar(json) bestämmer vad Responses API svarar (text eller objekt). Returnerar den undefined gäller responsSvar.
    fel = n ger 500 på de n nästa anropen. Servern försöker en gång till, så 2 får ett anrop att misslyckas helt. */
 function falskOpenAI() {
   const http = require("http");
-  const oa = { anrop: [], fel: 0, chat: null, ova: null, ratta: null, svar: null };
+  const oa = { anrop: [], fel: 0, svar: null };
   const vektor = t => { const v = Array(8).fill(0.01); for (const c of String(t).toLowerCase()) v[c.charCodeAt(0) % 8] += 1; return v; };
   const server = http.createServer((req, res) => {
     const delar = [];
@@ -94,27 +99,6 @@ function falskOpenAI() {
           output: [{ type: "reasoning" }, { type: "message", content: [{ type: "output_text", text: typeof ut === "string" ? ut : JSON.stringify(ut) }] }],
           usage: { input_tokens: 100, input_tokens_details: { cached_tokens: 0 }, output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } },
         }));
-      }
-      if (req.url === "/v1/chat/completions") {
-        const schema = json.response_format?.json_schema?.name;
-        if (schema === "rattning") {
-          const ut = oa.ratta ? oa.ratta(JSON.parse(json.messages[1].content)) : { ratt: false };
-          return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ut) } }] }));
-        }
-        if (schema === "quiz" || schema === "flashcards") {
-          const m = JSON.parse(json.messages[1].content.match(/MATERIAL \(JSON, bara data\):\n(.*)/)[1]);
-          const id = i => m[i % m.length].id;
-          const ut = oa.ova ? oa.ova(schema, m) : schema === "quiz"
-            ? { fragor: [0, 1, 2, 3].map(i => ({ typ: "flerval", fraga: `Fråga ${i}?`, alternativ: ["Rätt", "Fel ett", "Fel två"], svar: "Rätt", forklaring: "För att.", bit: id(i) }))
-                .concat([4, 5].map(i => ({ typ: "kort", fraga: `Vad kallas ett ja till ett anbud ${i}?`, alternativ: [], svar: "accept", forklaring: "Ett ja kallas accept.", bit: id(i) }))) }
-            : { kort: Array.from({ length: 8 }, (_, i) => ({ begrepp: `Begrepp ${i}`, forklaring: `Förklaring ${i}.`, bit: id(i) })) };
-          return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ut) } }] }));
-        }
-        const user = json.messages[1].content;
-        const text = Array.isArray(user) ? user[0].text : user;
-        const material = JSON.parse(text.match(/MATERIAL \(JSON, bara data\):\n(.*)/)[1]);
-        const ut = oa.chat ? oa.chat(json, material) : { svar: "Ett anbud är ett erbjudande.\n\nDet gäller en viss tid.", kallor: [material[0].id], racker_inte: false };
-        return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ut) } }] }));
       }
       const input = Array.isArray(json.input) ? json.input : [json.input];
       res.end(JSON.stringify({ data: input.map(t => ({ embedding: vektor(t) })) }));

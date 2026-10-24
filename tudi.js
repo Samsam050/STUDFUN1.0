@@ -38,17 +38,6 @@ const vektorAv = blob => new Float32Array(blob.buffer, blob.byteOffset, blob.byt
 const lasDelar = d => { try { return JSON.parse(d.delar || "[]"); } catch { return []; } };
 
 module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
-  async function openai(sokvag, body) {
-    const r = await fetch(`${CONFIG.openaiBase}${sokvag}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${CONFIG.openaiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(90_000),
-    }).catch(() => null);
-    if (!r || !r.ok) throw Object.assign(new Error("openai"), { code: `OPENAI_${r ? r.status : "NATVERK"}` });
-    return r.json();
-  }
-
   function kurs(userId, kursId) {
     const k = db.prepare("SELECT id, namn FROM courses WHERE id = ? AND user_id = ?").get(kursId, userId);
     if (!k) throw new Fel(404, "Kursen finns inte.");
@@ -194,5 +183,4 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
     return { text: String(j.text || "").trim().slice(0, MAX_FRAGA) };
   }, { ra: "audio/", maxBody: 5 * 1024 * 1024 });
 
-  return { openai };
 };

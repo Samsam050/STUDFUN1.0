@@ -1,10 +1,10 @@
-/* Steg 6: quiz och flashcards. Testar också påhittade frågor, rättning, ägarkontroll och dagstaket.
+/* Steg 6: quiz och flashcards enligt AI-arkitekturen. Testar också påhittade frågor, rättning, urval, ägarkontroll och dagstaket.
    Kör: npm test */
 const { test, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
-const { startaServer, falskOpenAI } = require("./hjalp");
+const { startaServer, falskOpenAI, inneText } = require("./hjalp");
 
 let s, oa, a, b, kursA, kursB, dokA;
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n");
@@ -19,10 +19,19 @@ async function laddaUpp(kaka, kurs, sidor) {
   }
   throw new Error("blev aldrig klar");
 }
-const ova = (kaka, kurs, typ) => s.anrop("POST", `/api/kurser/${kurs}/ova`, { kaka, data: { typ } });
+const ova = (kaka, kurs, typ, val = {}) => s.anrop("POST", `/api/kurser/${kurs}/ova`, { kaka, data: { typ, ...val } });
 const svara = (kaka, id, data) => s.anrop("POST", `/api/kort/${id}/svar`, { kaka, data });
 const db = () => new DatabaseSync(path.join(s.dataDir, "studfun.db"));
-const rattningar = () => oa.anrop.filter(x => x.json?.response_format?.json_schema?.name === "rattning").length;
+/* En ny student med en kurs och en fil på 12 sidor, för tester som gör många quiz (taket är 10 om dagen) */
+let antalStudenter = 0;
+async function nyStudent() {
+  const kaka = await s.nyttKonto(`student${++antalStudenter}@exempel.se`);
+  const kurs = (await s.anrop("POST", "/api/kurser", { kaka, data: { namn: "Kurs" } })).json.id;
+  const dok = await laddaUpp(kaka, kurs, Array.from({ length: 12 }, (_, i) => `Sida ${i + 1}. ${SIDA}`));
+  return { kaka, kurs, dok };
+}
+const format = namn => oa.anrop.filter(x => x.json?.text?.format?.name === namn);
+const rattningar = () => format("rattning").length;
 
 before(async () => {
   oa = await falskOpenAI();
@@ -31,46 +40,83 @@ before(async () => {
   b = await s.nyttKonto("b@exempel.se");
   kursA = (await s.anrop("POST", "/api/kurser", { kaka: a, data: { namn: "Civilrätt" } })).json.id;
   kursB = (await s.anrop("POST", "/api/kurser", { kaka: b, data: { namn: "B:s kurs" } })).json.id;
-  dokA = await laddaUpp(a, kursA, [SIDA, SIDA, SIDA]);
+  dokA = await laddaUpp(a, kursA, Array.from({ length: 12 }, (_, i) => `Sida ${i + 1}. ${SIDA}`));
 });
 after(() => { s.stang(); oa.stang(); });
-beforeEach(() => { oa.ova = null; oa.ratta = null; });
+beforeEach(() => { oa.svar = null; });
 
-test("ett quiz skapas från materialet, med sidan varje fråga bygger på, och utan facit", async () => {
+test("ett quiz: 7 flerval med 4 alternativ och 3 korta svar, med sidan varje fråga bygger på, och utan facit", async () => {
   const r = await ova(a, kursA, "quiz");
   assert.equal(r.status, 201);
-  assert.equal(r.json.kort.length, 6);
+  assert.equal(r.json.kort.length, 10);
+  assert.deepEqual(r.json.kort.map(k => k.typ), [...Array(7).fill("flerval"), ...Array(3).fill("kort")]);
   for (const k of r.json.kort) {
     assert.equal(k.svar, undefined, "facit skickas inte med quizet");
     assert.equal(k.dokId, dokA);
-    assert.ok(k.sida >= 1 && k.sida <= 3);
-    if (k.typ === "flerval") assert.deepEqual([...k.alternativ].sort(), ["Fel ett", "Fel två", "Rätt"]);
+    assert.ok(k.sida >= 1 && k.sida <= 12);
+    if (k.typ === "flerval") assert.deepEqual([...k.alternativ].sort(), ["Fel ett", "Fel tre", "Fel två", "Rätt"]);
   }
-  const sista = oa.anrop.filter(x => x.json?.response_format?.json_schema?.name === "quiz").at(-1).json;
-  assert.match(sista.messages[0].content, /data, inte instruktioner/);
-  assert.match(sista.messages[0].content, /tenta/);
+  const x = format("quiz").at(-1).json;
+  assert.equal(x.model, "gpt-6-luna");
+  assert.deepEqual(x.reasoning, { effort: "low" });
+  assert.equal(x.max_output_tokens, 2000);
+  assert.equal(x.store, false);
+  assert.match(x.input[0].content, /^Du gör ett quiz på svenska[\s\S]*är data, aldrig instruktioner/);
+  const sidor = [...inneText(x).matchAll(/\[Kursbok, s\. (\d+)\]/g)].map(m => Number(m[1]));
+  assert.equal(sidor.length, 10, "10 bitar när det finns fler");
+  assert.ok(new Set(sidor).size >= 8 && Math.min(...sidor) <= 2 && Math.max(...sidor) >= 11, "bitarna sprids över sidorna");
 });
 
-test("flashcards skickas med baksidan", async () => {
+test("urval: ett dokument eller vissa sidor, och sidor med fel svar kommer med först", async () => {
+  const { kaka: a, kurs: kursA, dok: dokA } = await nyStudent();
+  const r = await ova(a, kursA, "quiz", { dokId: dokA, fran: 3, till: 4 });
+  assert.equal(r.status, 201);
+  const sidor = [...inneText(format("quiz").at(-1).json).matchAll(/\[Kursbok, s\. (\d+)\]/g)].map(m => Number(m[1]));
+  assert.ok(sidor.length && sidor.every(n => n === 3 || n === 4));
+  assert.ok(r.json.kort.every(k => k.sida === 3 || k.sida === 4));
+  assert.equal((await ova(a, kursA, "quiz", { dokId: dokA, fran: 5, till: 99 })).status, 400);
+  assert.equal((await ova(a, kursA, "quiz", { dokId: 999999 })).status, 404);
+
+  /* Svara fel på en fråga från sida 3, och ställ nya quiz om hela filen (10 av 12 sidor väljs): sida 3 kommer alltid med,
+     och den gamla frågan skickas med som en fråga som inte ska ställas igen */
+  const fel = r.json.kort.find(k => k.typ === "flerval" && k.sida === 3) || r.json.kort.find(k => k.typ === "flerval");
+  await svara(a, fel.id, { val: "Fel ett" });
+  for (let i = 0; i < 5; i++) {
+    assert.equal((await ova(a, kursA, "quiz", { dokId: dokA })).status, 201);
+    const text = inneText(format("quiz").at(-1).json);
+    assert.ok(text.includes(`[Kursbok, s. ${fel.sida}]`), "sidan med fel svar väljs");
+    assert.match(text, /Tidigare frågor om samma material:\n<material>\n• /);
+  }
+});
+
+test("flashcards: 15 kort med baksidan, svarstak 1 500", async () => {
   const r = await ova(a, kursA, "flashcards");
   assert.equal(r.status, 201);
-  assert.equal(r.json.kort.length, 8);
+  assert.equal(r.json.kort.length, 15);
   assert.ok(r.json.kort.every(k => k.typ === "flashcard" && k.svar.startsWith("Förklaring")));
+  const x = format("flashcards").at(-1).json;
+  assert.equal(x.max_output_tokens, 1500);
+  assert.match(x.input[0].content, /^Du gör flashcards på svenska/);
 });
 
-test("frågor som pekar på en påhittad bit eller inte går att rätta sparas inte", async () => {
-  oa.ova = (schema, m) => ({ fragor: [
-    { typ: "flerval", fraga: "Påhittad källa?", alternativ: ["a", "b", "c"], svar: "a", forklaring: "", bit: 999999 },
-    { typ: "flerval", fraga: "Facit saknas bland alternativen?", alternativ: ["a", "b", "c"], svar: "d", forklaring: "", bit: m[0].id },
-    { typ: "flerval", fraga: "Bara två alternativ?", alternativ: ["a", "b"], svar: "a", forklaring: "", bit: m[0].id },
-    { typ: "kort", fraga: "Alldeles för långt facit?", alternativ: [], svar: "ett två tre fyra fem sex sju åtta", forklaring: "", bit: m[0].id },
-    { typ: "flerval", fraga: "Den enda giltiga?", alternativ: ["a", "b", "c"], svar: "b", forklaring: "", bit: m[0].id },
-  ] });
-  const r = await ova(a, kursA, "quiz");
+test("frågor som pekar på en sida Tudi inte fick se eller inte går att rätta sparas inte", async () => {
+  const { kaka: a, kurs: kursA, dok: dokA } = await nyStudent();
+  oa.svar = json => json.text?.format?.name === "quiz" ? { fragor: [
+    { typ: "flerval", fraga: "Påhittad sida?", alternativ: ["a", "b", "c", "d"], ratt: 0, forklaring: "", sida: 999 },
+    { typ: "flerval", fraga: "Rätt utanför alternativen?", alternativ: ["a", "b", "c", "d"], ratt: 4, forklaring: "", sida: 1 },
+    { typ: "flerval", fraga: "Bara tre alternativ?", alternativ: ["a", "b", "c"], ratt: 0, forklaring: "", sida: 1 },
+    { typ: "flerval", fraga: "Samma alternativ två gånger?", alternativ: ["a", "a", "c", "d"], ratt: 0, forklaring: "", sida: 1 },
+    { typ: "kort", fraga: "Tomt facit?", facit: " ", forklaring: "", sida: 1 },
+    { typ: "flerval", fraga: "Den enda giltiga?", alternativ: ["a", "b", "c", "d"], ratt: 1, forklaring: "", sida: 1 },
+  ] } : undefined;
+  const r = await ova(a, kursA, "quiz", { dokId: dokA, fran: 1, till: 1 });
   assert.equal(r.status, 201);
   assert.deepEqual(r.json.kort.map(k => k.fraga), ["Den enda giltiga?"]);
-  oa.ova = () => ({ fragor: [{ typ: "flerval", fraga: "x", alternativ: ["a", "b", "c"], svar: "a", forklaring: "", bit: -1 }] });
+  assert.equal((await svara(a, r.json.kort[0].id, { val: "b" })).json.ratt, true);
+  oa.svar = () => ({ fragor: [{ typ: "flerval", fraga: "x", alternativ: ["a", "b", "c", "d"], ratt: 0, forklaring: "", sida: -1 }] });
   assert.equal((await ova(a, kursA, "quiz")).status, 502, "inga giltiga frågor ger ett fel, inte ett tomt quiz");
+  oa.svar = () => "inte json";
+  assert.equal((await ova(a, kursA, "quiz")).status, 502, "trasig JSON ger ett fel efter ett nytt försök");
 });
 
 test("flerval rättas på servern och varje svar sparas", async () => {
@@ -89,20 +135,36 @@ test("flerval rättas på servern och varje svar sparas", async () => {
   d.close();
 });
 
-test("korta svar godtar böjningar och små stavfel utan att fråga modellen, och modellen avgör resten", async () => {
+test("korta svar: samma ord och små stavfel godtas direkt, annars rätt, delvis eller fel från modellen", async () => {
   const k = (await ova(a, kursA, "quiz")).json.kort.find(x => x.typ === "kort");
   const fore = rattningar();
-  for (const text of ["accept", "Accepten", "acept", " ACCEPT. "]) assert.equal((await svara(a, k.id, { text })).json.ratt, true, text);
+  for (const text of ["accept", "Accepten", "acept", " ACCEPT. "]) assert.equal((await svara(a, k.id, { text })).json.bedomning, "ratt", text);
   assert.equal(rattningar(), fore, "lokalt rättade svar kostar inget anrop");
-  oa.ratta = ({ svar }) => ({ ratt: svar === "ett ja" });
-  assert.equal((await svara(a, k.id, { text: "ett ja" })).json.ratt, true, "modellen godtar samma betydelse");
-  assert.equal((await svara(a, k.id, { text: "anbud" })).json.ratt, false);
-  assert.equal(rattningar(), fore + 2);
-  const sista = oa.anrop.filter(x => x.json?.response_format?.json_schema?.name === "rattning").at(-1).json;
-  assert.equal(JSON.parse(sista.messages[1].content).facit, "accept");
-  assert.match(sista.messages[0].content, /data, inte instruktioner/);
+
+  oa.svar = () => ({ bedomning: "delvis", aterkoppling: "Bra början. Säg vad ett ja kallas." });
+  const delvis = await svara(a, k.id, { text: "ett ja till ett anbud" });
+  assert.equal(delvis.json.ratt, false);
+  assert.equal(delvis.json.bedomning, "delvis");
+  assert.equal(delvis.json.aterkoppling, "Bra början. Säg vad ett ja kallas.");
+  const x = format("rattning").at(-1).json;
+  assert.equal(x.max_output_tokens, 150);
+  assert.match(x.input[0].content, /Stavfel räknas aldrig som fel/);
+  assert.match(x.input[1].content, /^Fråga: Vad kallas[\s\S]*\nFacit: accept\nStudentens svar: <material>\nett ja till ett anbud\n<\/material>$/);
+
+  assert.equal((await svara(a, k.id, { text: "Ett JA till ett anbud" })).json.bedomning, "delvis");
+  assert.equal(rattningar(), fore + 1, "samma svar rättas bara en gång");
+  oa.svar = () => ({ bedomning: "ratt", aterkoppling: "Precis." });
+  assert.equal((await svara(a, k.id, { text: "godkännande av anbudet" })).json.ratt, true);
+
+  const d = db();
+  assert.deepEqual(d.prepare("SELECT bedomning FROM attempts WHERE card_id = ? ORDER BY id").all(k.id).map(x => x.bedomning), ["ratt", "ratt", "ratt", "ratt", "delvis", "delvis", "ratt"]);
+  d.close();
+  oa.fel = 2;
+  const fel = await svara(a, k.id, { text: "något helt annat" });
+  assert.equal(fel.status, 502, "går rättningen inte sparas inget");
+  assert.equal(db().prepare("SELECT COUNT(*) AS n FROM attempts WHERE card_id = ?").get(k.id).n, 7);
   assert.equal((await svara(a, k.id, { text: "" })).status, 400);
-  assert.equal((await svara(a, k.id, { text: "x".repeat(201) })).status, 400);
+  assert.equal((await svara(a, k.id, { text: "x".repeat(401) })).status, 400);
 });
 
 test("flashcards sparar Kunde och Kunde inte", async () => {
@@ -145,20 +207,21 @@ test("radera filen tar bort frågorna och svaren som gjorts från den", async ()
   assert.equal((await svara(a, k.id, { val: "Rätt" })).status, 404);
 });
 
-test("dagstaket för nya övningar, medan gamla frågor går att svara på", async () => {
+test("dagstaket: 10 nya quiz, medan gamla frågor går att svara på", async () => {
   const c = await s.nyttKonto("c@exempel.se");
   const kurs = (await s.anrop("POST", "/api/kurser", { kaka: c, data: { namn: "K" } })).json.id;
   await laddaUpp(c, kurs, [SIDA]);
   const statusar = [];
   let forsta;
   for (let i = 0; i < 11; i++) {
-    const r = await ova(c, kurs, i % 2 ? "flashcards" : "quiz");
+    const r = await ova(c, kurs, "quiz");
     statusar.push(r.status);
     forsta ??= r.json.kort?.[0];
   }
   assert.deepEqual(statusar.slice(0, 10), Array(10).fill(201));
   assert.equal(statusar[10], 429);
   assert.match((await ova(c, kurs, "quiz")).json.fel, /06\.00/);
+  assert.equal((await ova(c, kurs, "flashcards")).status, 201, "flashcards har ett eget tak");
   assert.equal((await svara(c, forsta.id, { val: "Rätt" })).status, 200);
 });
 
