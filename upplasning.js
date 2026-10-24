@@ -1,7 +1,9 @@
 /*
-  Uppläsning med gpt-4o-mini-tts, som läser exakt det som står.
+  Uppläsning. Motorn väljs med TTS_MOTOR och modellen med MODEL_TTS (standard gpt-4o-mini-tts), som läser exakt det som står.
+  Piper på servern kopplas in här när det är provat och godkänt. Till dess används OpenAI:s röst.
   Ljudet sparas på disken, en mapp per fil, så att samma text bara hämtas en gång.
   Mappen raderas när filen raderas. Tempot sätts i webbläsaren, så det kostar inget nytt ljud.
+  Varje ny uppläsning mäts i ai_anrop med antal tecken.
 */
 const crypto = require("crypto");
 const fs = require("fs");
@@ -15,7 +17,9 @@ const INSTRUKTION = "Läs texten högt på svenska för en vuxen student som tyc
   "Uttala alla ord med svenskt uttal.";
 const PROVTEXT = "Hej! Så här låter jag när jag läser upp ditt kursmaterial.";
 
-module.exports = function ({ db, CONFIG, Fel, rutt, konto }) {
+module.exports = function ({ db, CONFIG, Fel, rutt, konto, ai }) {
+  if (CONFIG.ai.tts.motor !== "openai") console.error(`[sf] TTS_MOTOR=${CONFIG.ai.tts.motor} finns inte än, OpenAI:s röst används`);
+
   /* mapp null: ljudet sparas inte, till exempel Tudis svar som bara läses en gång */
   async function ljud(ctx, mapp, rost, text) {
     const fil = mapp && path.join(mapp, crypto.createHash("sha256").update(`${rost}\n${text}`).digest("hex") + ".mp3");
@@ -25,12 +29,14 @@ module.exports = function ({ db, CONFIG, Fel, rutt, konto }) {
       if (!forbruka(db, ctx.user.id, "upplasning", text.length, TAK_PER_DAG)) {
         throw new Fel(429, "Du har använt dagens uppläsning. Den fungerar igen i morgon från klockan 06.00. Det du redan har lyssnat på går att spela igen.");
       }
+      const start = Date.now();
       const r = await fetch(`${CONFIG.openaiBase}/v1/audio/speech`, {
         method: "POST",
         headers: { Authorization: `Bearer ${CONFIG.openaiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: rost, input: text, instructions: INSTRUKTION, response_format: "mp3" }),
+        body: JSON.stringify({ model: CONFIG.ai.tts.modell, voice: rost, input: text, instructions: INSTRUKTION, response_format: "mp3" }),
         signal: AbortSignal.timeout(60_000),
       }).catch(() => null);
+      ai.mat({ funktion: "upplasning", modell: CONFIG.ai.tts.modell, uid: ctx.user.id, ms: Date.now() - start, ok: !!(r && r.ok), tecken: text.length });
       if (!r || !r.ok) {
         console.error(`[sf] uppläsning misslyckades u=${ctx.user.id} ${r ? r.status : "natverk"}`);
         throw new Fel(502, "Uppläsningen fungerar inte just nu.");

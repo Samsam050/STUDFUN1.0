@@ -154,3 +154,16 @@ test("ett ord: bara ordet och meningen skickas, tak 150 och tänkande none, och 
   assert.match(responses()[1].json.input[1].content, /^VAL: EXEMPEL/);
   assert.equal((await s.anrop("POST", `/api/kurser/${kursA}/ord`, { kaka: b, data })).status, 404);
 });
+
+test("uppläsningen använder MODEL_TTS och mäts med antal tecken, och förklaringar av sidor sparas med filen", async () => {
+  const text = "En accept är ett ja, sidan 3.";
+  assert.equal((await s.anrop("POST", "/api/upplas-svar", { kaka: a, data: { text, dokId: dokA } })).status, 200);
+  assert.equal((await s.anrop("POST", "/api/upplas-svar", { kaka: a, data: { text, dokId: dokA } })).status, 200);
+  const tal = oa.anrop.filter(x => x.url === "/v1/audio/speech");
+  assert.equal(tal.length, 1, "andra gången kommer ljudet från disken");
+  assert.equal(tal[0].json.model, "gpt-4o-mini-tts");
+  const d = db();
+  assert.equal(d.prepare("SELECT tecken FROM ai_anrop WHERE funktion = 'upplasning' ORDER BY id DESC").get().tecken, text.length);
+  d.close();
+  assert.equal((await s.anrop("POST", "/api/upplas-svar", { kaka: a, data: { text, dokId: dokB } })).status, 404, "inte någon annans fil");
+});
