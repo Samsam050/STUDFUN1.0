@@ -60,6 +60,22 @@ test("varje ändrande adress nekas från en annan webbplats, även med giltig in
   assert.equal((await s.anrop("GET", "/api/jag", { kaka })).status, 200, "kontot finns kvar");
 });
 
+test("utan APP_ORIGIN godtas bara datorns egna adresser, med APP_ORIGIN bara den", async () => {
+  const lokal = await startaServer({ APP_ORIGIN: "" });
+  try {
+    for (const origin of ["localhost", "127.0.0.1", "[::1]"]) {
+      const port = new URL(lokal.logg().match(/StudFun 1\.0 på (\S+)/)[1]).port;
+      const r = await lokal.anrop("POST", "/api/konto", { origin: `http://${origin}:${port}`, data: { mejl: `${origin.replace(/\W/g, "")}@exempel.se`, losen: "tio tecken!!", godkant: true } });
+      assert.equal(r.status, 201, origin);
+    }
+    assert.equal((await lokal.anrop("POST", "/api/konto", { origin: "http://localhost:1", data: {} })).status, 403, "fel port");
+    assert.equal((await lokal.anrop("POST", "/api/konto", { origin: "http://studfun.evil", data: {} })).status, 403);
+    assert.match(lokal.logg(), /nekad: fel Origin/);
+  } finally { lokal.stang(); }
+  const port = new URL(s.logg().match(/StudFun 1\.0 på (\S+)/)[1]).port;
+  assert.equal((await s.anrop("POST", "/api/konto", { origin: `http://127.0.0.1:${port}`, data: {} })).status, 403, "med APP_ORIGIN är kontrollen strikt");
+});
+
 test("fel och okända adresser visar aldrig tekniska detaljer", async () => {
   const kaka = await s.nyttKonto("teknik@exempel.se");
   for (const [metod, adress, data] of [["GET", "/api/finns-inte"], ["PATCH", "/api/kurser"], ["GET", "/api/kurser/9999999999999999999999"],

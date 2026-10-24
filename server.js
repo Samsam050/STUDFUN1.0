@@ -9,6 +9,7 @@
     PORT=8788
     HOST=127.0.0.1               lyssnar bara lokalt. Proxy eller Funnel framför sköter resten.
     APP_ORIGIN=http://localhost:8788   StudFuns egen adress. Ändrande anrop från andra adresser nekas.
+                                 Sätts alltid på servern. Utan den godtas bara localhost, 127.0.0.1 och [::1].
     DATA_DIR=./data              databasen och PDF:erna. Ska bara kunna läsas av StudFuns användare.
     TRUST_PROXY=1                läs studentens adress från X-Forwarded-For (bara bakom egen proxy)
     OPENAI_API_KEY=sk-...        stannar på servern. Utan den blir uppladdade filer aldrig klara för Tudi.
@@ -27,6 +28,8 @@ const CONFIG = {
   port: PORT,
   host: process.env.HOST || "127.0.0.1",
   origin: process.env.APP_ORIGIN || `http://localhost:${PORT}`,
+  /* Utan APP_ORIGIN körs appen lokalt, och då är localhost, 127.0.0.1 och [::1] samma dator */
+  tillatna: process.env.APP_ORIGIN ? [process.env.APP_ORIGIN] : ["localhost", "127.0.0.1", "[::1]"].map(v => `http://${v}:${PORT}`),
   dataDir: process.env.DATA_DIR || path.join(__dirname, "data"),
   trustProxy: process.env.TRUST_PROXY === "1",
   openaiKey: process.env.OPENAI_API_KEY || "",
@@ -134,7 +137,8 @@ require("./nasta")(delar);
 
 async function api(req, res, url) {
   /* Anrop som ändrar något godtas bara från StudFuns egen adress */
-  if (req.method !== "GET" && req.method !== "HEAD" && req.headers.origin !== CONFIG.origin) {
+  if (req.method !== "GET" && req.method !== "HEAD" && !CONFIG.tillatna.includes(req.headers.origin)) {
+    console.error(`[sf] ${req.method} ${url.pathname.replace(/\d+/g, ":id")} nekad: fel Origin`);
     return skicka(res, 403, { fel: "Anropet nekades." });
   }
   const traffar = rutter.filter(r => r.re.test(url.pathname));
