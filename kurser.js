@@ -55,7 +55,7 @@ module.exports = function ({ db, Fel, rutt, raderaPdf }) {
   /* Kursen och allt i den: PDF:erna på disken, och via ON DELETE CASCADE texten, sökindexet, chatten, korten och svaren */
   rutt("DELETE", "/api/kurser/:id", ctx => {
     kurs(ctx.user.id, ctx.params.id);
-    for (const { fil } of db.prepare("SELECT fil FROM documents WHERE course_id = ? AND user_id = ?").all(ctx.params.id, ctx.user.id)) raderaPdf(fil);
+    for (const d of db.prepare("SELECT id, fil FROM documents WHERE course_id = ? AND user_id = ?").all(ctx.params.id, ctx.user.id)) raderaPdf(d);
     transaktion(db, () => db.prepare("DELETE FROM courses WHERE id = ? AND user_id = ?").run(ctx.params.id, ctx.user.id));
     console.log(`[sf] kurs raderad u=${ctx.user.id} k=${ctx.params.id}`);
     return {};

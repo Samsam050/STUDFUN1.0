@@ -183,7 +183,9 @@ export default async function visa(main, { kursId }) {
         h("div", { class: "sf-stapel sf-stapel--luft sf-vaxer" },
           h("p", { class: "sf-medd-rubrik sf-gron-text" }, "Klart! Filen är redo."),
           h("p", {}, `${titel}, ${sidorText(antalSidor)}, finns nu i ${kursNu.namn}.`),
-          h("a", { href: `/kurser/${kursNu.id}`, class: "sf-btn sf-btn--primar sf-btn--sjalv" }, `Till ${kursNu.namn}`))));
+          h("div", { class: "sf-knapprad" },
+            h("a", { href: `/kurser/${kursNu.id}/las/${docId}?sida=1`, class: "sf-btn sf-btn--primar" }, "Börja läsa"),
+            h("a", { href: `/kurser/${kursNu.id}`, class: "sf-btn sf-btn--sekundar" }, `Till ${kursNu.namn}`)))));
     }
 
     /* fetch kan inte visa förlopp för uppladdning, därför XMLHttpRequest här */

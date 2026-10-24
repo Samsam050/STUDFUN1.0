@@ -52,6 +52,7 @@ En student kan ha högst 50 kurser.
 | `fil` | Slumpat namn på PDF:en i `data/pdf/`, till exempel `1f69…e075.pdf`. Aldrig studentens filnamn. |
 | `storlek` | Filens storlek i byte, högst 50 MB. |
 | `skapad` | Ordningen i listan, nyaste först. |
+| `senast_sida` | Sidan studenten senast läste. Visaren och läsläget öppnar där. |
 
 En student kan ha högst 20 filer.
 
@@ -62,6 +63,17 @@ En student kan ha högst 20 filer.
 | `sida` | Sidan biten står på. Tudi visar den som källa. |
 | `text` | Ungefär en halv sida text. Bryts aldrig mitt i en mening, och sträcker sig aldrig över två sidor. |
 | `vektor` | Vektorn från OpenAI (`text-embedding-3-small`), sparad som 32‑bitars flyttal. Görs en gång per fil. |
+
+## anvandning
+| Fält | Varför |
+|---|---|
+| `user_id` | Vems användning det är. |
+| `dag` | Dagen, som byts klockan 06.00 svensk tid. Rader äldre än en vecka raderas. |
+| `typ` | Vad som räknas, till exempel `upplasning` (tecken som lästs upp och inte redan fanns sparade). |
+| `antal` | Hur mycket som använts. Jämförs med dagens tak. |
+
+## Sparad uppläsning (inte i databasen)
+Uppläst ljud sparas som filer i `data/upplasning/<filens id>/`, så att samma text bara hämtas en gång från OpenAI. Mappen raderas när filen, kursen, allt material eller kontot raderas. Röstproven i Inställningar ligger i `data/upplasning/prov/` och innehåller ingen text från studenter.
 
 ## Tabeller som används från steg 5 och framåt
 De skapas redan nu, så att alla rader har `user_id` från början.

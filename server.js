@@ -32,15 +32,17 @@ const CONFIG = {
   vektorModell: process.env.VEKTOR_MODELL || "text-embedding-3-small",
 };
 CONFIG.pdfDir = path.join(CONFIG.dataDir, "pdf");
+CONFIG.ttsDir = path.join(CONFIG.dataDir, "upplasning"); // sparat ljud, en mapp per fil
 fs.mkdirSync(CONFIG.pdfDir, { recursive: true, mode: 0o700 });
+fs.mkdirSync(CONFIG.ttsDir, { recursive: true, mode: 0o700 });
 
 const PUBLIC = path.join(__dirname, "public");
 const db = oppna(CONFIG.dataDir);
 
 const SAKERHET = {
   "Content-Security-Policy": [
-    "default-src 'self'", "script-src 'self'", "style-src 'self'", "img-src 'self' data: blob:",
-    "font-src 'self'", "connect-src 'self'", "worker-src 'self' blob:", "object-src 'none'",
+    "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "style-src 'self'", "img-src 'self' data: blob:",
+    "font-src 'self'", "connect-src 'self'", "media-src 'self' blob:", "worker-src 'self' blob:", "object-src 'none'",
     "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'",
   ].join("; "),
   "X-Content-Type-Options": "nosniff",
@@ -108,15 +110,19 @@ function ip(req) {
   return req.socket.remoteAddress || "";
 }
 
-/* Tar bort en PDF från disken. Namnet kontrolleras, så att inget utanför mappen kan raderas. */
-function raderaPdf(fil) {
+/* Tar bort en fils PDF och dess sparade uppläsning från disken.
+   Namnet kontrolleras, så att inget utanför mapparna kan raderas. */
+function raderaPdf({ id, fil }) {
   if (/^[a-f0-9]{32}\.pdf$/.test(fil)) fs.rmSync(path.join(CONFIG.pdfDir, fil), { force: true });
+  if (Number.isInteger(id)) fs.rmSync(path.join(CONFIG.ttsDir, String(id)), { recursive: true, force: true });
 }
 
 const delar = { db, CONFIG, Fel, rutt, raderaPdf };
 const konto = require("./konto")(delar);
+delar.konto = konto;
 require("./kurser")(delar);
 require("./dokument")(delar);
+require("./upplasning")(delar);
 
 async function api(req, res, url) {
   /* Anrop som ändrar något godtas bara från StudFuns egen adress */

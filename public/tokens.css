@@ -59,6 +59,8 @@
   --sf-platshallare: #EDE6D8;  /* laddningsrader och förloppsstapel */
   --sf-platshallare-2: #F2ECE0;
   --sf-dialog-bakgrund: rgba(6, 41, 22, .55);
+  --sf-linjal-dim: rgba(255, 253, 248, .62);   /* tonar ner raderna utanför läslinjalen */
+  --sf-linjal-band: rgba(254, 133, 34, .07);
 
   /* Typsnitt. Atkinson Hyperlegible väljs i Inställningar. */
   --sf-font: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;

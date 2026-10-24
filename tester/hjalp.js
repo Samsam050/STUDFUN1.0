@@ -59,6 +59,10 @@ function falskOpenAI() {
     req.on("end", () => {
       const json = JSON.parse(body || "{}");
       anrop.push({ url: req.url, auth: req.headers.authorization, json });
+      if (req.url === "/v1/audio/speech") {
+        res.writeHead(200, { "Content-Type": "audio/mpeg" });
+        return res.end(Buffer.from("ID3 låtsasljud för " + json.voice));
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ data: (json.input || []).map(() => ({ embedding: Array.from({ length: 8 }, () => Math.random()) })) }));
     });

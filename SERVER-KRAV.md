@@ -22,4 +22,5 @@ Det här behöver StudFun 1.0 på servern. Läs det tillsammans med Del A i `STU
 
 * `DATA_DIR` innehåller databasen och PDF:erna (`data/pdf/`). Servern skapar mapparna med rättigheten 700 och filerna med 600.
 * En PDF får vara högst 50 MB, och en student kan ha högst 20 filer. Räkna med upp till 1 GB per student i värsta fall. Mät den första veckan.
-* Säkerhetskopian måste ta med både `studfun.db` och `pdf/`.
+* Säkerhetskopian måste ta med både `studfun.db` och `pdf/`. Mappen `upplasning/` är sparat ljud som kan hämtas igen, och behöver inte säkerhetskopieras.
+* CSP:n tillåter `wasm-unsafe-eval`. pdf.js behöver det för att visa vissa bildformat i PDF:er. Det tillåter inte `eval`.

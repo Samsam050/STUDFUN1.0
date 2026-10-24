@@ -1,5 +1,5 @@
 /* En kurs: namn och termin, materialet och radera kursen.
-   Öppna en fil kommer i steg 4, Fråga Tudi i steg 5 och Öva i steg 6. */
+   Fråga Tudi kommer i steg 5 och Öva i steg 6. */
 import { h, ikon, meddelande, felMedForsok, dialog, laddar } from "../dom.js";
 import { api, app } from "../app.js";
 import { kursDialog } from "../kurs-delar.js";
@@ -85,6 +85,7 @@ export default async function visa(main, { kursId }) {
           h("span", { class: `sf-marke sf-marke--${klass}` }, ikon(ik, 18), text)),
         not && h("span", { class: "sf-hjalp" }, not)),
       h("div", { class: "sf-knapprad" },
+        d.status !== "fel" && h("a", { href: `/kurser/${kurs.id}/visa/${d.id}?sida=${d.senastSida}`, class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-label": `Öppna ${d.titel}` }, "Öppna"),
         d.status === "fel" && h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten" }, "Ladda upp igen"),
         h("button", { type: "button", class: "sf-btn sf-btn--fara-kant sf-btn--liten", "aria-label": `Radera ${d.titel}`, onclick: () => raderaFil(d) }, "Radera")));
   }

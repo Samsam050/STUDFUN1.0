@@ -15,6 +15,7 @@ const LOSEN_MIN = 10, LOSEN_MAX = 200;
 const TEXTSTORLEKAR = [20, 22, 26, 30];
 const TYPSNITT = ["lexend", "atkinson"];
 const TEMPON = ["langsamt", "normalt", "snabbt"];
+const ROSTER = ["marin", "cedar", "shimmer"]; // Röst 1, 2 och 3 i Inställningar
 
 /* Gränser för försök. shortcut: räknas i minnet och nollas vid omstart, byt till databasen om servern startas om ofta. */
 const FONSTER = 15 * 60 * 1000;
@@ -72,12 +73,12 @@ module.exports = function ({ db, Fel, rutt, raderaPdf }) {
   }
 
   function raderaFiler(userId) {
-    for (const { fil } of db.prepare("SELECT fil FROM documents WHERE user_id = ?").all(userId)) raderaPdf(fil);
+    for (const d of db.prepare("SELECT id, fil FROM documents WHERE user_id = ?").all(userId)) raderaPdf(d);
   }
 
   function installningar(userId) {
     const s = db.prepare("SELECT textstorlek, typsnitt, rost, tempo FROM settings WHERE user_id = ?").get(userId);
-    return { textstorlek: s.textstorlek, typsnitt: s.typsnitt, rost: s.rost, tempo: s.tempo };
+    return { textstorlek: s.textstorlek, typsnitt: s.typsnitt, rost: s.rost || ROSTER[0], tempo: s.tempo };
   }
 
   rutt("POST", "/api/konto", async ctx => {
@@ -139,8 +140,9 @@ module.exports = function ({ db, Fel, rutt, raderaPdf }) {
     if (b.textstorlek !== undefined && !TEXTSTORLEKAR.includes(b.textstorlek)) throw new Fel(400, "Den textstorleken finns inte.");
     if (b.typsnitt !== undefined && !TYPSNITT.includes(b.typsnitt)) throw new Fel(400, "Det typsnittet finns inte.");
     if (b.tempo !== undefined && !TEMPON.includes(b.tempo)) throw new Fel(400, "Det tempot finns inte.");
-    db.prepare("UPDATE settings SET textstorlek = COALESCE(?, textstorlek), typsnitt = COALESCE(?, typsnitt), tempo = COALESCE(?, tempo) WHERE user_id = ?")
-      .run(b.textstorlek ?? null, b.typsnitt ?? null, b.tempo ?? null, ctx.user.id);
+    if (b.rost !== undefined && !ROSTER.includes(b.rost)) throw new Fel(400, "Den rösten finns inte.");
+    db.prepare("UPDATE settings SET textstorlek = COALESCE(?, textstorlek), typsnitt = COALESCE(?, typsnitt), tempo = COALESCE(?, tempo), rost = COALESCE(?, rost) WHERE user_id = ?")
+      .run(b.textstorlek ?? null, b.typsnitt ?? null, b.tempo ?? null, b.rost ?? null, ctx.user.id);
     return installningar(ctx.user.id);
   });
 
@@ -172,5 +174,5 @@ module.exports = function ({ db, Fel, rutt, raderaPdf }) {
     for (const k of forsok.keys()) antal(k);
   }, 3600 * 1000).unref();
 
-  return { inloggad };
+  return { inloggad, installningar, ROSTER };
 };

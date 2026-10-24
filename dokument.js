@@ -43,7 +43,7 @@ function dela(sidor) {
 }
 
 module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
-  const svar = d => ({ id: d.id, kursId: d.course_id, titel: d.titel, sidor: d.sidor, status: d.status, storlek: d.storlek });
+  const svar = d => ({ id: d.id, kursId: d.course_id, titel: d.titel, sidor: d.sidor, status: d.status, storlek: d.storlek, senastSida: d.senast_sida });
   function dokument(userId, id) {
     const d = db.prepare("SELECT * FROM documents WHERE id = ? AND user_id = ? AND status != 'vantar_fil'").get(id, userId);
     if (!d) throw new Fel(404, "Filen finns inte.");
@@ -96,12 +96,31 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
     await fs.promises.rename(mal + ".tmp", mal);
     const r = db.prepare("UPDATE documents SET status = 'bearbetas', storlek = ? WHERE id = ? AND user_id = ? AND status = 'vantar_fil'")
       .run(data.length, d.id, ctx.user.id);
-    if (r.changes === 0) { raderaPdf(d.fil); throw new Fel(404, "Filen finns inte."); } // raderades under uppladdningen
+    if (r.changes === 0) { raderaPdf(d); throw new Fel(404, "Filen finns inte."); } // raderades under uppladdningen
     koa(d.id);
     return svar(dokument(ctx.user.id, d.id));
   }, { ra: "application/pdf", maxBody: MAX_PDF_BYTES });
 
   rutt("GET", "/api/dokument/:id", ctx => svar(dokument(ctx.user.id, ctx.params.id)));
+
+  /* Texten sida för sida, till läsläget. Sidor utan text blir tomma. */
+  rutt("GET", "/api/dokument/:id/sidor", ctx => {
+    const d = dokument(ctx.user.id, ctx.params.id);
+    const sidor = Array.from({ length: d.sidor }, () => []);
+    for (const b of db.prepare("SELECT sida, text FROM chunks WHERE document_id = ? AND user_id = ? ORDER BY id").all(d.id, ctx.user.id)) {
+      if (sidor[b.sida - 1]) sidor[b.sida - 1].push(b.text);
+    }
+    return { sidor: sidor.map(t => t.join(" ")) };
+  });
+
+  /* Var studenten slutade läsa, så att filen öppnas där nästa gång */
+  rutt("PUT", "/api/dokument/:id/position", ctx => {
+    const d = dokument(ctx.user.id, ctx.params.id);
+    const sida = ctx.body.sida;
+    if (!Number.isInteger(sida) || sida < 1 || sida > d.sidor) throw new Fel(400, "Sidan finns inte.");
+    db.prepare("UPDATE documents SET senast_sida = ? WHERE id = ? AND user_id = ?").run(sida, d.id, ctx.user.id);
+    return {};
+  });
 
   /* PDF:en, bara till ägaren. attachment gör att webbläsaren aldrig visar den själv. Appen läser den med pdf.js. */
   rutt("GET", "/api/dokument/:id/fil", async ctx => {
@@ -121,7 +140,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
   rutt("DELETE", "/api/dokument/:id", ctx => {
     const d = db.prepare("SELECT id, fil FROM documents WHERE id = ? AND user_id = ?").get(ctx.params.id, ctx.user.id);
     if (!d) throw new Fel(404, "Filen finns inte.");
-    raderaPdf(d.fil);
+    raderaPdf(d);
     db.prepare("DELETE FROM documents WHERE id = ? AND user_id = ?").run(d.id, ctx.user.id);
     console.log(`[sf] dokument raderat u=${ctx.user.id} d=${d.id}`);
     return {};
@@ -171,7 +190,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
   /* Vid start: fortsätt med det som inte hann bli klart, och städa bort uppladdningar som avbröts */
   function stada() {
     for (const d of db.prepare("SELECT id, fil FROM documents WHERE status = 'vantar_fil' AND skapad < ?").all(Date.now() - 3600 * 1000)) {
-      raderaPdf(d.fil);
+      raderaPdf(d);
       db.prepare("DELETE FROM documents WHERE id = ?").run(d.id);
     }
   }
