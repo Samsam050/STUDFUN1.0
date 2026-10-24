@@ -51,7 +51,7 @@ function cosinus(a, b) {
 }
 const vektorAv = blob => new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4);
 
-module.exports = function ({ db, CONFIG, Fel, rutt }) {
+module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
   async function openai(sokvag, body) {
     const r = await fetch(`${CONFIG.openaiBase}${sokvag}`, {
       method: "POST",
@@ -71,8 +71,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt }) {
 
   /* Bitarna i kursen som liknar frågan mest. shortcut: går igenom alla bitar i kursen vid varje fråga, byt till ett vektorindex om kurserna blir mycket större än 20 filer. */
   async function sok(userId, kursId, text) {
-    const { data } = await openai("/v1/embeddings", { model: CONFIG.vektorModell, input: text, dimensions: CONFIG.vektorDim });
-    const fraga = data[0].embedding;
+    const [fraga] = await ai.vektorer([text], { uid: userId, funktion: "sok" });
     return db.prepare(`SELECT c.id, c.document_id, c.sida, c.text, c.vektor, d.titel FROM chunks c
         JOIN documents d ON d.id = c.document_id
         WHERE c.user_id = ? AND d.user_id = ? AND d.course_id = ? AND d.status = 'klar' AND c.vektor IS NOT NULL`)
@@ -109,7 +108,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt }) {
         ? [{ type: "text", text: delar }, { type: "image_url", image_url: { url: bild, detail: "high" } }]
         : delar;
       const j = await openai("/v1/chat/completions", {
-        model: CONFIG.tudiModell,
+        model: CONFIG.ai.chatt.modell,
         temperature: 0.3,
         messages: [{ role: "system", content: REGLER }, { role: "user", content: innehall }],
         response_format: { type: "json_schema", json_schema: { name: "tudi_svar", strict: true, schema: SCHEMA } },
@@ -209,16 +208,18 @@ module.exports = function ({ db, CONFIG, Fel, rutt }) {
     if (!forbruka(db, ctx.user.id, "tal", 1, TAL_PER_DAG)) throw new Fel(429, "Du har använt dagens tal till text. Det fungerar igen i morgon från klockan 06.00. Du kan skriva din fråga under tiden.");
     const fd = new FormData();
     fd.append("file", new Blob([ctx.body], { type: typ }), `tal.${typ.split("/")[1].replace("x-m4a", "m4a")}`);
-    fd.append("model", CONFIG.talModell);
+    fd.append("model", CONFIG.ai.tal.modell);
     fd.append("language", "sv");
+    const start = Date.now();
     const r = await fetch(`${CONFIG.openaiBase}/v1/audio/transcriptions`, {
       method: "POST", headers: { Authorization: `Bearer ${CONFIG.openaiKey}` }, body: fd, signal: AbortSignal.timeout(60_000),
     }).catch(() => null);
-    if (!r || !r.ok) {
+    const j = r && r.ok ? await r.json().catch(() => null) : null;
+    ai.mat({ funktion: "tal", modell: CONFIG.ai.tal.modell, uid: ctx.user.id, usage: j?.usage, ms: Date.now() - start, ok: !!j });
+    if (!j) {
       console.error(`[sf] tal till text misslyckades u=${ctx.user.id} ${r ? r.status : "natverk"}`);
       throw new Fel(502, "Tal till text fungerar inte just nu. Du kan skriva din fråga under tiden.");
     }
-    const j = await r.json();
     return { text: String(j.text || "").trim().slice(0, MAX_FRAGA) };
   }, { ra: "audio/", maxBody: 5 * 1024 * 1024 });
 

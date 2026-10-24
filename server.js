@@ -14,13 +14,14 @@
     TRUST_PROXY=1                läs studentens adress från X-Forwarded-For (bara bakom egen proxy)
     OPENAI_API_KEY=sk-...        stannar på servern. Utan den blir uppladdade filer aldrig klara för Tudi.
     OPENAI_BASE=https://api.openai.com
-    VEKTOR_MODELL=text-embedding-3-small
-    TUDI_MODELL=gpt-4o-mini       måste kunna läsa bilder och svara i JSON-schema
-    TAL_MODELL=gpt-4o-mini-transcribe
+    MODEL_*, EFFORT_*, TTS_MOTOR  modell och tänkande för varje AI-funktion. Se .env.example.
+
+  Finns en fil .env bredvid server.js läses den först. Det som redan står i miljön går före filen.
 */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+try { process.loadEnvFile(path.join(__dirname, ".env")); } catch (e) { if (e.code !== "ENOENT") throw e; }
 const { oppna } = require("./db");
 
 const PORT = Number(process.env.PORT || 8788);
@@ -34,10 +35,23 @@ const CONFIG = {
   trustProxy: process.env.TRUST_PROXY === "1",
   openaiKey: process.env.OPENAI_API_KEY || "",
   openaiBase: process.env.OPENAI_BASE || "https://api.openai.com",
-  vektorModell: process.env.VEKTOR_MODELL || "text-embedding-3-small",
   vektorDim: 512, // räcker för sökningen och gör den lätt nog för en liten server
-  tudiModell: process.env.TUDI_MODELL || "gpt-4o-mini",
-  talModell: process.env.TAL_MODELL || "gpt-4o-mini-transcribe",
+};
+/* Modell, tänkande och tak för svarslängd för varje AI-funktion. Modell och tänkande går att byta i .env utan ny kod.
+   Tomt tänkande (EFFORT_X=) skickar inget tänkande alls, för modeller som inte tänker. */
+const modell = (namn, standard) => process.env[namn] || standard;
+const tank = (namn, standard) => process.env[namn] ?? standard;
+CONFIG.ai = {
+  ord: { modell: modell("MODEL_ORD", "gpt-6-luna"), effort: tank("EFFORT_ORD", "none"), maxUt: 150 },
+  sida: { modell: modell("MODEL_SIDA", "gpt-6-luna"), effort: tank("EFFORT_SIDA", "none"), igen: tank("EFFORT_SIDA_IGEN", "low"), maxUt: 600 },
+  chatt: { modell: modell("MODEL_CHATT", "gpt-6-luna"), effort: tank("EFFORT_CHATT", "low"), maxUt: 800 },
+  sammanfattning: { modell: modell("MODEL_SAMMANFATTNING", "gpt-5-nano"), effort: tank("EFFORT_SAMMANFATTNING", "minimal"), maxUt: 400 },
+  borja: { modell: modell("MODEL_BORJA", "gpt-6-luna"), effort: tank("EFFORT_BORJA", "none"), maxUt: 600 },
+  ova: { modell: modell("MODEL_OVA", "gpt-6-luna"), effort: tank("EFFORT_OVA", "low"), maxUt: 2000 },
+  ratta: { modell: modell("MODEL_RATTA", "gpt-6-luna"), effort: tank("EFFORT_RATTA", "low"), maxUt: 150 },
+  embed: { modell: modell("MODEL_EMBED", "text-embedding-3-small") }, // byts den måste alla filer laddas upp igen
+  tal: { modell: modell("MODEL_TAL", "gpt-4o-mini-transcribe") },
+  tts: { motor: modell("TTS_MOTOR", "openai"), modell: modell("MODEL_TTS", "gpt-4o-mini-tts") },
 };
 CONFIG.pdfDir = path.join(CONFIG.dataDir, "pdf");
 CONFIG.ttsDir = path.join(CONFIG.dataDir, "upplasning"); // sparat ljud, en mapp per fil
@@ -126,6 +140,7 @@ function raderaPdf({ id, fil }) {
 }
 
 const delar = { db, CONFIG, Fel, rutt, raderaPdf };
+delar.ai = require("./ai")(delar);
 const konto = require("./konto")(delar);
 delar.konto = konto;
 require("./kurser")(delar);

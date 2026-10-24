@@ -1,0 +1,8 @@
+{
+  "_om": "Pris i dollar per miljon token, som kostnad.js räknar med. null betyder att priset inte är ifyllt. Kontrollera mot openai.com/api/pricing.",
+  "gpt-6-luna": { "in": null, "cache": null, "ut": null },
+  "gpt-5-nano": { "in": 0.05, "cache": 0.005, "ut": 0.40 },
+  "text-embedding-3-small": { "in": 0.02, "cache": 0.02, "ut": 0 },
+  "gpt-4o-mini-transcribe": { "in": null, "cache": null, "ut": null },
+  "gpt-4o-mini-tts": { "in": null, "cache": null, "ut": null }
+}

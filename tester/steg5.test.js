@@ -155,7 +155,7 @@ test("förklara ett ord i läsläget sparas inte i samtalet", async () => {
 
 test("om OpenAI inte svarar sparas ingenting och studenten får försöka igen", async () => {
   const fore = (await s.anrop("GET", `/api/kurser/${kursA}/meddelanden`, { kaka: a })).json.meddelanden.length;
-  oa.fel = true;
+  oa.fel = 2;
   const r = await fraga(a, kursA, { fraga: "Vad är ett anbud?" });
   assert.equal(r.status, 502);
   assert.match(r.json.fel, /Din fråga finns kvar/);

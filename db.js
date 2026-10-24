@@ -106,6 +106,39 @@ const MIGRATIONER = [
    CREATE INDEX attempts_user ON attempts(user_id);`,
   /* Steg 7: när studenten senast läste i filen, för nästa steg och Fortsätt läsa */
   `ALTER TABLE documents ADD COLUMN senast_last INTEGER;`,
+  /* AI-arkitekturen: mätning av varje anrop till OpenAI, och sparade svar som kan komma igen.
+     ai_anrop har ingen koppling till users: student är ett slumpat id, och raderas kontot finns bara siffrorna kvar. */
+  `ALTER TABLE users ADD COLUMN matid TEXT;
+   CREATE TABLE ai_anrop (
+     id INTEGER PRIMARY KEY,
+     dag TEXT NOT NULL,
+     tid INTEGER NOT NULL,
+     funktion TEXT NOT NULL,
+     modell TEXT NOT NULL,
+     student TEXT NOT NULL,
+     token_in INTEGER NOT NULL,
+     token_cache INTEGER NOT NULL,
+     token_ut INTEGER NOT NULL,
+     token_tank INTEGER NOT NULL,
+     tecken INTEGER NOT NULL,
+     ms INTEGER NOT NULL,
+     ok INTEGER NOT NULL
+   );
+   CREATE INDEX ai_anrop_dag ON ai_anrop(dag);
+   CREATE TABLE ai_cache (
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     nyckel TEXT NOT NULL,
+     typ TEXT NOT NULL,
+     document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+     course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+     svar TEXT NOT NULL,
+     skapad INTEGER NOT NULL,
+     anvand INTEGER NOT NULL,
+     PRIMARY KEY (user_id, nyckel)
+   );
+   CREATE INDEX ai_cache_document ON ai_cache(document_id);
+   CREATE INDEX ai_cache_course ON ai_cache(course_id);
+   CREATE INDEX ai_cache_anvand ON ai_cache(anvand);`,
 ];
 
 function oppna(dataDir) {

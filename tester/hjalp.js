@@ -52,7 +52,7 @@ async function startaServer(extraEnv = {}) {
 /* En låtsas-OpenAI. Sparar anropen så att testerna kan titta på dem.
    Vektorerna räknas fram ur bokstäverna, så att liknande texter får liknande vektorer.
    chat(json) bestämmer vad "modellen" svarar. Standard: svaret bygger på första biten i MATERIAL.
-   fel = true ger 500 på nästa anrop. */
+   fel = n ger 500 på de n nästa anropen. Servern försöker en gång till, så 2 får ett anrop att misslyckas helt. */
 function falskOpenAI() {
   const http = require("http");
   const oa = { anrop: [], fel: false, chat: null, ova: null, ratta: null };
@@ -62,7 +62,7 @@ function falskOpenAI() {
     req.on("data", d => delar.push(d));
     req.on("end", () => {
       const ra = Buffer.concat(delar);
-      if (oa.fel) { oa.fel = false; res.writeHead(500); return res.end(); }
+      if (oa.fel > 0) { oa.fel--; res.writeHead(500); return res.end(); }
       if (req.url === "/v1/audio/transcriptions") {
         oa.anrop.push({ url: req.url, auth: req.headers.authorization, storlek: ra.length });
         res.writeHead(200, { "Content-Type": "application/json" });

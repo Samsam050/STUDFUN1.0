@@ -42,7 +42,7 @@ function dela(sidor) {
   return bitar;
 }
 
-module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
+module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf, ai }) {
   const svar = d => ({ id: d.id, kursId: d.course_id, titel: d.titel, sidor: d.sidor, status: d.status, storlek: d.storlek, senastSida: d.senast_sida });
   function dokument(userId, id) {
     const d = db.prepare("SELECT * FROM documents WHERE id = ? AND user_id = ? AND status != 'vantar_fil'").get(id, userId);
@@ -158,20 +158,13 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
   }
   async function vektorisera(id) {
     if (!CONFIG.openaiKey) { console.error(`[sf] OPENAI_API_KEY saknas, d=${id} väntar`); return; }
+    const uid = db.prepare("SELECT user_id FROM documents WHERE id = ?").get(id)?.user_id;
     const bitar = db.prepare("SELECT id, text FROM chunks WHERE document_id = ? AND vektor IS NULL ORDER BY id").all(id);
     for (let i = 0; i < bitar.length; i += VEKTOR_PER_ANROP) {
       const del = bitar.slice(i, i + VEKTOR_PER_ANROP);
-      const r = await fetch(`${CONFIG.openaiBase}/v1/embeddings`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${CONFIG.openaiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: CONFIG.vektorModell, input: del.map(b => b.text), dimensions: CONFIG.vektorDim }),
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (!r.ok) throw Object.assign(new Error("openai"), { code: `OPENAI_${r.status}` });
-      const { data } = await r.json();
-      if (!Array.isArray(data) || data.length !== del.length) throw Object.assign(new Error("openai"), { code: "OPENAI_SVAR" });
+      const data = await ai.vektorer(del.map(b => b.text), { uid, funktion: "vektorer" });
       const spara = db.prepare("UPDATE chunks SET vektor = ? WHERE id = ? AND document_id = ?");
-      transaktion(db, () => data.forEach((v, k) => spara.run(Buffer.from(new Float32Array(v.embedding).buffer), del[k].id, id)));
+      transaktion(db, () => data.forEach((v, k) => spara.run(Buffer.from(new Float32Array(v).buffer), del[k].id, id)));
     }
     db.prepare("UPDATE documents SET status = 'klar' WHERE id = ? AND status = 'bearbetas'").run(id);
     console.log(`[sf] dokument klart d=${id} bitar=${bitar.length}`);
