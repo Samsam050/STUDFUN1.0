@@ -59,7 +59,7 @@ export default function (main) {
     utfor: async () => {
       await api("DELETE", "/api/konto");
       app.jag = null;
-      navigera("/konto-raderat");
+      return () => navigera("/konto-raderat");
     },
   });
   async function loggaUt() {

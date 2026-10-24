@@ -2,8 +2,8 @@
 import { h, ikon, meddelande } from "../dom.js";
 import { api, app, navigera, tillampa } from "../app.js";
 
-export default function (main, adress) {
-  let ny = adress === "/skapa-konto";
+export default function (main) {
+  let ny = location.pathname === "/skapa-konto";
   let visaLosen = false;
 
   const rubrik = h("h1", {});

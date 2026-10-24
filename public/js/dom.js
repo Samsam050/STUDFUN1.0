@@ -27,6 +27,7 @@ const IKONER = {
   ova: ["M7 3h12a2 2 0 0 1 2 2v12", "m7 13.5 2.5 2.5L14 11", { rect: [3, 6, 14, 15, 2] }],
   installningar: ["M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12", { cirkel: [16, 6, 2] }, { cirkel: [10, 12, 2] }, { cirkel: [18, 18, 2] }],
   pil: ["M5 12h14", "m13 6 6 6-6 6"],
+  tillbaka: ["M19 12H5", "m11 18-6-6 6-6"],
   plus: ["M12 5v14M5 12h14"],
   fel: [{ cirkel: [12, 12, 9] }, "M12 7v6", "M12 16.5v.5"],
   bock: ["m5 12.5 4.5 4.5L19 7"],
@@ -53,7 +54,8 @@ export function meddelande(typ, text) {
 }
 
 /* Dialog som frågar innan något raderas. Med kryss måste studenten kryssa i rutan först.
-   Fokus stannar i dialogen, Esc stänger, och fokus går tillbaka till knappen som öppnade den. */
+   Fokus stannar i dialogen, Esc stänger, och fokus går tillbaka till knappen som öppnade den.
+   utfor() kan lämna tillbaka en funktion som körs när dialogen har stängts, till exempel för att byta sida. */
 export function dialog({ rubrik, text, kryss, knapp, utfor }) {
   const forra = document.activeElement;
   const fel = h("div", { class: "sf-topp-fel" });
@@ -70,10 +72,23 @@ export function dialog({ rubrik, text, kryss, knapp, utfor }) {
   ok.addEventListener("click", async () => {
     ok.disabled = true;
     fel.replaceChildren();
-    try { await utfor(); d.close(); }
+    try { const efter = await utfor(); d.close(); if (efter) efter(); }
     catch (e) { fel.append(meddelande("fel", e.message)); ok.disabled = false; }
   });
   d.addEventListener("close", () => { d.remove(); if (forra && forra.isConnected) forra.focus(); });
   document.body.append(d);
   d.showModal();
+}
+
+/* Fel när något inte gick att hämta, med en knapp som provar igen */
+export function felMedForsok(text, forsok) {
+  return h("div", { class: "sf-stapel sf-stapel--luft" }, meddelande("fel", text),
+    h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--sjalv", onclick: forsok }, "Försök igen"));
+}
+
+/* Lugna platshållare medan något hämtas. Inget rör sig. */
+export function laddar(text, antal = 3) {
+  return h("div", { role: "status", class: "sf-stapel sf-stapel--luft" }, h("p", { class: "sf-hjalp" }, text),
+    h("div", { class: "sf-kurs-grid", "aria-hidden": "true" }, Array.from({ length: antal }, () =>
+      h("div", { class: "sf-ruta sf-platshallare-kort" }, h("div", {}), h("div", {}), h("div", {})))));
 }

@@ -4,8 +4,11 @@ import loggaIn from "./sidor/logga-in.js";
 import start from "./sidor/start.js";
 import installningar from "./sidor/installningar.js";
 import kontoRaderat from "./sidor/konto-raderat.js";
+import kurser from "./sidor/kurser.js";
+import kurs from "./sidor/kurs.js";
 
-export const app = { jag: null };
+/* kvitto: ett meddelande som nästa sida visar en gång, till exempel "Kursen är skapad" */
+export const app = { jag: null, kvitto: null };
 
 /* oppen: går att se utan inloggning. utanSkal: visas utan meny. */
 const SIDOR = [
@@ -13,12 +16,16 @@ const SIDOR = [
   { re: /^\/skapa-konto$/, sida: loggaIn, titel: "Skapa konto", oppen: true, utanSkal: true },
   { re: /^\/konto-raderat$/, sida: kontoRaderat, titel: "Kontot är raderat", oppen: true, utanSkal: true },
   { re: /^\/$/, sida: start, titel: "Hem", meny: "hem" },
+  { re: /^\/kurser$/, sida: kurser, titel: "Mina kurser", meny: "kurser" },
+  { re: /^\/kurser\/(?<kursId>\d+)$/, sida: kurs, titel: "Kurs", meny: "kurser" },
   { re: /^\/installningar$/, sida: installningar, titel: "Inställningar", meny: "installningar" },
 ];
 
 /* Menyn växer med varje steg. Bara det som finns visas. */
 const MENY = [
   { id: "hem", text: "Hem", ikon: "hem", adress: "/" },
+  /* ?meny: har studenten bara en kurs öppnas den direkt */
+  { id: "kurser", text: "Mina kurser", kort: "Kurser", ikon: "kurser", adress: "/kurser?meny" },
   { id: "installningar", text: "Inställningar", ikon: "installningar", adress: "/installningar", baraDator: true },
 ];
 
@@ -57,7 +64,7 @@ export function navigera(adress, { ersatt = false } = {}) {
 
 function skal(aktiv) {
   const lank = (m, klass) => h("a", { href: m.adress, class: klass, "aria-current": m.id === aktiv ? "page" : false },
-    ikon(m.ikon), m.text);
+    ikon(m.ikon), klass && m.kort ? m.kort : m.text);
   const mejl = app.jag.mejl;
   const main = h("main", { id: "innehall", class: "sf-main" });
   const flikar = MENY.filter(m => !m.baraDator);
@@ -85,7 +92,7 @@ function inteHittad(main) {
     h("a", { href: "/", class: "sf-btn sf-btn--primar" }, "Till startsidan"));
 }
 
-function visa(flyttaFokus) {
+async function visa(flyttaFokus) {
   const adress = location.pathname;
   const s = SIDOR.find(s => s.re.test(adress));
   if (s && !s.oppen && !app.jag) return navigera("/logga-in", { ersatt: true });
@@ -103,7 +110,9 @@ function visa(flyttaFokus) {
     rot.replaceChildren(sk.rot);
   }
   document.title = (s ? s.titel : "Sidan finns inte") + " · StudFun";
-  if (s) s.sida(main, adress); else inteHittad(main);
+  /* Sidan får hämta det den behöver innan fokus flyttas till rubriken */
+  if (s) await s.sida(main, s.re.exec(adress).groups || {}); else inteHittad(main);
+  if (!main.isConnected) return; // studenten hann byta sida
   if (flyttaFokus) {
     const rubrik = main.querySelector("h1");
     if (rubrik) { rubrik.setAttribute("tabindex", "-1"); rubrik.focus(); }

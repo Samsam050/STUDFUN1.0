@@ -97,9 +97,14 @@ function ip(req) {
   return req.socket.remoteAddress || "";
 }
 
-const delar = { db, CONFIG, Fel, rutt };
+/* Tar bort en PDF från disken. Namnet kontrolleras, så att inget utanför mappen kan raderas. */
+function raderaPdf(fil) {
+  if (/^[a-f0-9]{32}\.pdf$/.test(fil)) fs.rmSync(path.join(CONFIG.pdfDir, fil), { force: true });
+}
+
+const delar = { db, CONFIG, Fel, rutt, raderaPdf };
 const konto = require("./konto")(delar);
-delar.konto = konto;
+require("./kurser")(delar);
 
 async function api(req, res, url) {
   /* Anrop som ändrar något godtas bara från StudFuns egen adress */

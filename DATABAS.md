@@ -30,12 +30,22 @@ Databasen är inställd så att raderade rader skrivs över med nollor (`secure_
 | `typsnitt` | `lexend` eller `atkinson`. |
 | `rost`, `tempo` | För uppläsningen, som kommer i steg 4. |
 
-## Tabeller som används från steg 2 och framåt
+## courses
+| Fält | Varför |
+|---|---|
+| `id` | Kopplar material, chatt och kort till kursen. |
+| `user_id` | Vems kursen är. Varje fråga kontrollerar den. |
+| `namn` | Kursens namn, högst 100 tecken. Visas alltid som text, aldrig som HTML. |
+| `termin` | Till exempel `HT 2026`, eller tomt. Bara formen `HT 2026` eller `VT 2027` godtas. |
+| `skapad` | Ordningen i listan, nyaste först. |
+
+En student kan ha högst 50 kurser.
+
+## Tabeller som används från steg 3 och framåt
 De skapas redan nu, så att alla rader har `user_id` från början.
 
 | Tabell | Fält |
 |---|---|
-| `courses` | `namn`, `termin`, `skapad` |
 | `documents` | `course_id`, `titel`, `sidor`, `status`, `fil` (slumpat filnamn, aldrig studentens), `storlek`, `skapad` |
 | `chunks` | `document_id`, `sida`, `text`, `vektor` |
 | `messages` | `course_id`, `roll`, `text`, `kallor`, `tid` |

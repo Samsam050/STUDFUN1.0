@@ -4,8 +4,6 @@
   I databasen sparas bara en hash av kakan, så en läckt databas ger inga inloggningar.
 */
 const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
 const { promisify } = require("util");
 const { transaktion } = require("./db");
 const scrypt = promisify(crypto.scrypt);
@@ -47,7 +45,7 @@ async function stammer(losen, lagrad) {
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
 const mejlOk = m => typeof m === "string" && m.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m);
 
-module.exports = function ({ db, CONFIG, Fel, rutt }) {
+module.exports = function ({ db, Fel, rutt, raderaPdf }) {
   /* Används för okända mejladresser, så att svaret tar lika lång tid som för riktiga konton */
   const attrapp = hasha(crypto.randomBytes(16).toString("hex"));
 
@@ -73,11 +71,8 @@ module.exports = function ({ db, CONFIG, Fel, rutt }) {
     return rad ? { id: rad.id, mejl: rad.mejl } : null;
   }
 
-  /* Tar bort PDF:erna från disken. Namnen kontrolleras, så att inget utanför mappen kan raderas. */
   function raderaFiler(userId) {
-    for (const { fil } of db.prepare("SELECT fil FROM documents WHERE user_id = ?").all(userId)) {
-      if (/^[a-f0-9]{32}\.pdf$/.test(fil)) fs.rmSync(path.join(CONFIG.pdfDir, fil), { force: true });
-    }
+    for (const { fil } of db.prepare("SELECT fil FROM documents WHERE user_id = ?").all(userId)) raderaPdf(fil);
   }
 
   function installningar(userId) {
