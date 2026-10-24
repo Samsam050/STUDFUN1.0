@@ -53,6 +53,7 @@ En student kan ha högst 50 kurser.
 | `storlek` | Filens storlek i byte, högst 50 MB. |
 | `skapad` | Ordningen i listan, nyaste först. |
 | `senast_sida` | Sidan studenten senast läste. Visaren och läsläget öppnar där. |
+| `senast_last` | När studenten senast läste i filen. Tom om filen aldrig har öppnats. Nästa steg och "Du läste senast" bygger på den. |
 
 En student kan ha högst 20 filer.
 

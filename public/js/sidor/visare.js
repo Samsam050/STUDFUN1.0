@@ -182,4 +182,5 @@ export default async function visa(main, { kursId, filId }) {
     h("div", { class: "sf-visare-kropp" }, yta, panel));
   rita();
   ladda();
+  api("PUT", `/api/dokument/${dok.id}/position`, { sida }).catch(() => {}); // filen räknas som påbörjad
 }

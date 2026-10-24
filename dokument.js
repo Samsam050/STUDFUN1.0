@@ -118,7 +118,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
     const d = dokument(ctx.user.id, ctx.params.id);
     const sida = ctx.body.sida;
     if (!Number.isInteger(sida) || sida < 1 || sida > d.sidor) throw new Fel(400, "Sidan finns inte.");
-    db.prepare("UPDATE documents SET senast_sida = ? WHERE id = ? AND user_id = ?").run(sida, d.id, ctx.user.id);
+    db.prepare("UPDATE documents SET senast_sida = ?, senast_last = ? WHERE id = ? AND user_id = ?").run(sida, Date.now(), d.id, ctx.user.id);
     return {};
   });
 

@@ -10,9 +10,15 @@ import laddaUpp from "./sidor/ladda-upp.js";
 import visare from "./sidor/visare.js";
 import laslage from "./sidor/laslage.js";
 import fraga from "./sidor/fraga.js";
-import { quiz, flashcards } from "./sidor/ova.js";
+import { quiz, flashcards, repetera } from "./sidor/ova.js";
+import { senasteKurs } from "./sidor/fraga.js";
 
 /* kvitto: ett meddelande som nästa sida visar en gång, till exempel "Kursen är skapad" */
+async function laddaUppSenaste() {
+  const k = await senasteKurs().catch(() => null);
+  navigera(k ? `/kurser/${k.id}/ladda-upp` : "/kurser", { ersatt: true });
+}
+
 export const app = { jag: null, kvitto: null };
 
 /* oppen: går att se utan inloggning. utanSkal: visas utan meny. */
@@ -29,6 +35,8 @@ const SIDOR = [
   { re: /^\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
   { re: /^\/kurser\/(?<kursId>\d+)\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
   { re: /^\/ova$/, sida: quiz, titel: "Öva", meny: "ova" },
+  { re: /^\/ladda-upp$/, sida: laddaUppSenaste, titel: "Nytt material", meny: "kurser" },
+  { re: /^\/kurser\/(?<kursId>\d+)\/ova\/repetera$/, sida: repetera, titel: "Repetera", meny: "ova" },
   { re: /^\/kurser\/(?<kursId>\d+)\/ova\/quiz$/, sida: quiz, titel: "Quiz", meny: "ova" },
   { re: /^\/kurser\/(?<kursId>\d+)\/ova\/flashcards$/, sida: flashcards, titel: "Flashcards", meny: "ova" },
   { re: /^\/installningar$/, sida: installningar, titel: "Inställningar", meny: "installningar" },

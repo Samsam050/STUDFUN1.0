@@ -266,7 +266,7 @@ export default async function visa(main, { kursId, filId }) {
       standard && h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: () => lasFran(mening) }, "Försök igen")));
   }
 
-  let posTimer = 0, sparadSida = dok.senastSida;
+  let posTimer = 0, sparadSida = null; // första delen sparas också, så att filen räknas som påbörjad
   function sparaPosition(sida) {
     if (sida === sparadSida) return;
     clearTimeout(posTimer);

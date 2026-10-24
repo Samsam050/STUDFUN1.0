@@ -512,6 +512,25 @@ select.sf-falt { padding-right: 44px; }
 .sf-kort-begrepp--liten { font-size: var(--sf-fs-3); }
 .sf-kort-text { font-size: var(--sf-fs-las); line-height: 1.6; max-width: 46ch; }
 
+/* Startsidan: nästa steg, snabbval och kurskort */
+.sf-nasta-steg--start { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: var(--sf-s-24); padding-bottom: 0; overflow: hidden; }
+.sf-nasta-text { flex: 1 1 260px; padding-bottom: var(--sf-s-28); max-width: 600px; }
+.sf-nasta-text h2 { font-size: var(--sf-fs-2); line-height: 1.3; font-weight: 600; color: #fff; }
+.sf-nasta-steg .sf-nasta-brod { font-size: 18px; line-height: 1.6; font-weight: 400; color: var(--sf-gron-100); max-width: 52ch; }
+.sf-nasta-tudi { flex: 0 0 200px; display: flex; flex-direction: column; align-items: center; margin-left: auto; }
+.sf-nasta-tudi img { width: 140px; display: block; }
+.sf-nasta-steg .sf-pratbubbla {
+  margin: 0 0 var(--sf-s-12); align-self: flex-start; max-width: 240px; padding: var(--sf-s-14) var(--sf-s-18);
+  border-radius: 18px 18px 18px 6px; background: var(--sf-yta); color: var(--sf-text); font-size: var(--sf-fs-liten); line-height: 1.45; font-weight: 400;
+}
+.sf-snabbval { flex-direction: row; align-items: center; gap: var(--sf-s-16); text-decoration: none; color: var(--sf-text); }
+.sf-snabbval:hover { border-color: var(--sf-gron); color: var(--sf-text); }
+.sf-snabbval-rubrik { font-size: var(--sf-fs-4); font-weight: 600; }
+.sf-ikonruta--stor-ish { width: 52px; height: 52px; background: var(--sf-gron); color: #fff; }
+.sf-ikonruta--stor-ish.sf-ikonruta--orange { background: var(--sf-orange-100); color: var(--sf-orange-text); }
+.sf-kurskort-rad { font-size: var(--sf-fs-liten); line-height: 1.5; }
+.sf-kurskort-rad strong { font-weight: 600; }
+
 @media (min-width: 1024px) {
   .sf-skal { flex-direction: row; }
   .sf-topp, .sf-flikrad { display: none; }
@@ -539,6 +558,10 @@ select.sf-falt { padding-right: 44px; }
   .sf-visa-tudi { position: static; box-shadow: none; min-height: var(--sf-klickyta); padding: 0 var(--sf-s-14); font-size: var(--sf-fs-liten); }
   .sf-visare-yta { padding-bottom: var(--sf-s-24); }
   .sf-nasta-steg { padding: var(--sf-s-40) 44px; }
+  .sf-nasta-steg--start { padding-bottom: 0; }
+  .sf-nasta-text { padding-bottom: var(--sf-s-40); }
+  .sf-nasta-text h2 { font-size: var(--sf-fs-2); }
+  .sf-nasta-tudi img { width: 190px; }
   .sf-kort { min-height: 340px; padding: 36px var(--sf-s-40); }
 
   .sf-inlogg { flex-direction: row; }

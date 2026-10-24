@@ -10,9 +10,13 @@ const NAMN_MAX = 100;
 const TERMIN = /^(HT|VT) \d{4}$/;
 
 const URVAL = `SELECT c.id, c.namn, c.termin,
-  (SELECT COUNT(*) FROM documents d WHERE d.course_id = c.id AND d.user_id = c.user_id) AS antal_pdf
+  (SELECT COUNT(*) FROM documents d WHERE d.course_id = c.id AND d.user_id = c.user_id) AS antal_pdf,
+  (SELECT COUNT(*) FROM documents d WHERE d.course_id = c.id AND d.user_id = c.user_id AND d.status = 'bearbetas') AS bearbetas,
+  (SELECT json_object('dokId', d.id, 'titel', d.titel, 'sida', d.senast_sida) FROM documents d
+    WHERE d.course_id = c.id AND d.user_id = c.user_id AND d.senast_last IS NOT NULL ORDER BY d.senast_last DESC LIMIT 1) AS senast
   FROM courses c`;
-const svar = k => ({ id: k.id, namn: k.namn, termin: k.termin, antalPdf: k.antal_pdf });
+/* senast: filen studenten senast läste i kursen, för Du läste senast och Fortsätt läsa */
+const svar = k => ({ id: k.id, namn: k.namn, termin: k.termin, antalPdf: k.antal_pdf, bearbetas: k.bearbetas, senast: k.senast ? JSON.parse(k.senast) : null });
 
 module.exports = function ({ db, Fel, rutt, raderaPdf }) {
   function las(body) {

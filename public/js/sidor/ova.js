@@ -5,12 +5,13 @@ import { api, app, navigera } from "../app.js";
 import * as ljud from "../upplasning.js";
 import { kommIhagKurs, senasteKurs } from "./fraga.js";
 
-/* Gemensamt för quiz och flashcards: kursen, en ny omgång, och lägena laddar, tomt och fel */
-async function starta(main, kursId, typ, rita) {
+/* Gemensamt för quiz och flashcards: kursen, en ny omgång, och lägena laddar, tomt och fel.
+   repetera: i stället för en ny omgång, frågorna studenten senast svarade fel på */
+async function starta(main, kursId, typ, rita, repetera = false) {
   if (!kursId) {
     let k;
     try { k = await senasteKurs(); }
-    catch { main.append(h("div", { class: "sf-sida" }, h("h1", {}, "Öva"), felMedForsok("Kunde inte hämta kurserna.", () => { main.replaceChildren(); starta(main, kursId, typ, rita); }))); return; }
+    catch { main.append(h("div", { class: "sf-sida" }, h("h1", {}, "Öva"), felMedForsok("Kunde inte hämta kurserna.", () => { main.replaceChildren(); starta(main, kursId, typ, rita, repetera); }))); return; }
     if (k) return navigera(`/kurser/${k.id}/ova/quiz`, { ersatt: true });
     main.append(h("div", { class: "sf-sida" }, h("h1", {}, "Öva"), h("p", {}, "Skapa en kurs och ladda upp material först. Sedan kan Tudi göra quiz och flashcards från det."),
       h("a", { href: "/kurser", class: "sf-btn sf-btn--primar sf-btn--sjalv" }, "Till Mina kurser")));
@@ -21,12 +22,12 @@ async function starta(main, kursId, typ, rita) {
   catch (e) {
     main.append(h("div", { class: "sf-sida" }, h("h1", {}, e.status === 404 ? "Kursen finns inte" : "Öva"),
       e.status === 404 ? h("a", { href: "/kurser", class: "sf-btn sf-btn--primar sf-btn--sjalv" }, "Till Mina kurser")
-        : felMedForsok("Kunde inte hämta kursen.", () => { main.replaceChildren(); starta(main, kursId, typ, rita); })));
+        : felMedForsok("Kunde inte hämta kursen.", () => { main.replaceChildren(); starta(main, kursId, typ, rita, repetera); })));
     return;
   }
   kommIhagKurs(kurs.id);
   const quiz = typ === "quiz";
-  const rubrik = `${quiz ? "Quiz" : "Flashcards"}: ${kurs.namn}`;
+  const rubrik = `${repetera ? "Repetera" : quiz ? "Quiz" : "Flashcards"}: ${kurs.namn}`;
   document.title = `${rubrik} · StudFun`;
   const status = h("span", { class: "sf-etikett", role: "status" });
   const innehall = h("div", { class: "sf-stapel sf-stapel--luft" });
@@ -43,7 +44,15 @@ async function starta(main, kursId, typ, rita) {
       h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }),
       h("p", {}, quiz ? "Tudi gör i ordning frågor från ditt material …" : "Tudi gör i ordning flashcards från ditt material …")));
     try {
-      const { kort } = await api("POST", `/api/kurser/${kurs.id}/ova`, { typ });
+      const { kort } = repetera ? await api("GET", `/api/kurser/${kurs.id}/repetera-${typ}`) : await api("POST", `/api/kurser/${kurs.id}/ova`, { typ });
+      if (!kort.length) {
+        innehall.replaceChildren(h("div", { class: "sf-ruta sf-resultat" },
+          h("img", { src: "/bilder/tudi.png", alt: "", class: "sf-klar-tudi" }),
+          h("div", { class: "sf-stapel sf-stapel--luft sf-vaxer" }, h("p", { class: "sf-rad-rubrik" }, "Du har inget att repetera just nu"),
+            h("p", {}, "Allt du har övat på senast kunde du. Gör en ny omgång för att öva på mer."),
+            h("a", { href: `/kurser/${kurs.id}/ova/${typ}`, class: "sf-btn sf-btn--accent sf-btn--sjalv" }, quiz ? "Nytt quiz" : "Nya flashcards"))));
+        return;
+      }
       rita({ kurs, kort, innehall, status, ny });
     } catch (e) {
       innehall.replaceChildren(e.status === 409
@@ -204,4 +213,5 @@ function ritaFlashcards({ kurs, kort, innehall, status }) {
 }
 
 export const quiz = (main, { kursId }) => starta(main, kursId, "quiz", ritaQuiz);
-export const flashcards = (main, { kursId }) => starta(main, kursId, "flashcards", ritaFlashcards);
+export const flashcards = (main, { kursId }) => starta(main, kursId, "flashcards", ritaFlashcards, location.search === "?repetera");
+export const repetera = (main, { kursId }) => starta(main, kursId, "quiz", ritaQuiz, true);

@@ -10,8 +10,12 @@ export function kurskort(k, i, rubrik = "h2") {
     h("div", { class: "sf-kurskort-topp" },
       h("div", { class: "sf-stapel" }, h(rubrik, { class: "sf-kurskort-namn" }, k.namn), h("p", { class: "sf-etikett" }, kursMeta(k))),
       h("span", { class: `sf-ikonruta${i % 2 ? " sf-ikonruta--orange" : ""}`, "aria-hidden": "true" }, ikon("kurser"))),
+    /* Var studenten slutade, eller att en fil fortfarande bearbetas */
+    k.senast && h("p", { class: "sf-kurskort-rad" }, "Du läste senast ", h("strong", {}, `${k.senast.titel}, sida ${k.senast.sida}`)),
+    !k.senast && k.bearbetas > 0 && h("p", { class: "sf-marke sf-marke--vantar sf-btn--sjalv" }, ikon("klocka", 18), k.bearbetas === 1 ? "1 PDF bearbetas" : `${k.bearbetas} PDF:er bearbetas`),
     h("div", { class: "sf-knapprad" },
-      h("a", { href: `/kurser/${k.id}`, class: "sf-btn sf-btn--primar sf-btn--liten", "aria-label": `Öppna kursen ${k.namn}` }, "Öppna kursen"),
+      k.senast && h("a", { href: `/kurser/${k.id}/las/${k.senast.dokId}?sida=${k.senast.sida}`, class: "sf-btn sf-btn--primar sf-btn--liten", "aria-label": `Fortsätt läsa ${k.senast.titel}` }, "Fortsätt läsa"),
+      h("a", { href: `/kurser/${k.id}`, class: `sf-btn ${k.senast ? "sf-btn--sekundar" : "sf-btn--primar"} sf-btn--liten`, "aria-label": `Öppna kursen ${k.namn}` }, "Öppna kursen"),
       !k.antalPdf && h("a", { href: `/kurser/${k.id}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-label": `Ladda upp PDF till ${k.namn}` }, "Ladda upp PDF")));
 }
 

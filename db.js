@@ -104,6 +104,8 @@ const MIGRATIONER = [
    ALTER TABLE cards ADD COLUMN forklaring TEXT NOT NULL DEFAULT '';
    ALTER TABLE cards ADD COLUMN skapad INTEGER NOT NULL DEFAULT 0;
    CREATE INDEX attempts_user ON attempts(user_id);`,
+  /* Steg 7: när studenten senast läste i filen, för nästa steg och Fortsätt läsa */
+  `ALTER TABLE documents ADD COLUMN senast_last INTEGER;`,
 ];
 
 function oppna(dataDir) {
