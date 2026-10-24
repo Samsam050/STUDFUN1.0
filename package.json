@@ -1,0 +1,11 @@
+{
+  "name": "studfun-uni",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StudFun 1.0, en AI-lärare för universitetsstudenter med dyslexi",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node --experimental-sqlite server.js",
+    "test": "node --experimental-sqlite --test tester/*.test.js"
+  }
+}

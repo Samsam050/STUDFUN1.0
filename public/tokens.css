@@ -1,0 +1,120 @@
+/* StudFun 1.0, designvariabler.
+   Färger: STUDFUN-1.0/design/skarmar/01-designsystem.html.
+   Storlekar, avstånd och hörn: de värden skärmarna använder, enligt Hayssams beslut 24 oktober 2026.
+   Ändras designen, ändra här. Inga färger eller storlekar skrivs direkt i skärmarna. */
+
+/* Typsnitten ligger lokalt, eftersom CSP:n inte tillåter Google Fonts. Licens: fonts/OFL-*.txt */
+@font-face { font-family: 'Lexend'; font-weight: 100 900; font-display: swap; src: url(fonts/lexend-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Lexend'; font-weight: 100 900; font-display: swap; src: url(fonts/lexend-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Atkinson Hyperlegible'; font-weight: 400; font-display: swap; src: url(fonts/atkinson-400-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Atkinson Hyperlegible'; font-weight: 400; font-display: swap; src: url(fonts/atkinson-400-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Atkinson Hyperlegible'; font-weight: 700; font-display: swap; src: url(fonts/atkinson-700-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Atkinson Hyperlegible'; font-weight: 700; font-display: swap; src: url(fonts/atkinson-700-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+:root {
+  /* Färger, grön */
+  --sf-gron-meny: #062916;
+  --sf-gron: #1C481E;
+  --sf-gron-hover: #25592A;
+  --sf-gron-200: #C9DCC8;
+  --sf-gron-100: #E3EDE1;
+  --sf-gron-50: #F0F5EE;
+
+  /* Färger, orange. Aldrig som brödtext på ljus yta. */
+  --sf-orange: #FE8522;        /* ytor, ikoner, markeringar */
+  --sf-orange-hover: #FF9A45;
+  --sf-orange-text: #A84A00;   /* orange som text på ljus yta, 5,4:1 */
+  --sf-orange-200: #FFD3AE;    /* uppläst ord */
+  --sf-orange-100: #FFEBDA;
+
+  /* Neutrala */
+  --sf-gradde: #FBF7EF;
+  --sf-yta: #FFFDF8;
+  --sf-yta-2: #F4EEE2;
+  --sf-kant: #E6DDCC;
+  --sf-kant-stark: #857A64;    /* kant på fält, 3:1 */
+  --sf-text: #1A2A1D;
+  --sf-text-2: #4D5A50;
+  --sf-text-pa-orange: #062916;
+
+  /* Lägen */
+  --sf-fel: #B3261E;
+  --sf-fel-bg: #FBE9E6;
+  --sf-vanta-text: #8A4300;
+  --sf-vanta-bg: #FFF1E0;
+  --sf-fokus: #1C481E;         /* på mörk yta: var(--sf-orange) */
+
+  /* Används i skärmarna men saknas i designsystemets lista */
+  --sf-klar-kant: #A8BFAA;     /* kant på meddelandet Klart */
+  --sf-fel-kant: #E8B4AD;      /* kant på felmeddelanden */
+  --sf-fel-hover: #951F18;     /* röd knapp, hover */
+  --sf-platshallare-text: #6B6352; /* exempeltext i tomma fält */
+  --sf-kant-streckad: #B9AD95; /* ytan Dra hit din PDF */
+  --sf-platshallare: #EDE6D8;  /* laddningsrader och förloppsstapel */
+  --sf-platshallare-2: #F2ECE0;
+  --sf-dialog-bakgrund: rgba(6, 41, 22, .55);
+
+  /* Typsnitt. Atkinson Hyperlegible väljs i Inställningar. */
+  --sf-font: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --sf-font-alt: 'Atkinson Hyperlegible', system-ui, sans-serif;
+
+  /* Textstorlekar, mobil. Datorns värden står under @media nedan. */
+  --sf-fs-xl: 32px;       /* sidans rubrik: Hej Sahra!, Mina kurser */
+  --sf-fs-1: 30px;        /* rubrik på undersidor: Nytt material, Inställningar */
+  --sf-fs-2: 24px;        /* rubrik i dialog och resultat */
+  --sf-fs-3: 21px;        /* avsnittsrubrik: Mina kurser, Snabbval */
+  --sf-fs-4: 20px;        /* kursnamn på kort, nästa steg */
+  --sf-fs-ingress: 18px;  /* text under sidans rubrik */
+  --sf-fs-brod: 17px;
+  --sf-fs-liten: 16px;    /* länkar som Avsluta, knappar i verktygsfält */
+  --sf-fs-etikett: 15px;  /* sida 12, 4 PDF:er, Nästa steg */
+  --sf-fs-knapp: 18px;
+  --sf-lh-rubrik: 1.25; --sf-lh-brod: 1.6; --sf-lh-las: 1.8;
+  --sf-max-rad: 66ch;
+
+  /* Läsläget. Stegen kommer från Inställningar: Mellan, Stor, Större, Störst. */
+  --sf-fs-las: 22px;      /* standard, Stor */
+  --sf-fs-las-1: 20px; --sf-fs-las-2: 22px; --sf-fs-las-3: 26px; --sf-fs-las-4: 30px;
+
+  /* Avstånd. Namnet är antalet px, så värdet i designen går att slå upp direkt. */
+  --sf-s-2: 2px;   --sf-s-4: 4px;   --sf-s-6: 6px;   --sf-s-8: 8px;   --sf-s-10: 10px;
+  --sf-s-12: 12px; --sf-s-14: 14px; --sf-s-16: 16px; --sf-s-18: 18px; --sf-s-20: 20px;
+  --sf-s-22: 22px; --sf-s-24: 24px; --sf-s-28: 28px; --sf-s-32: 32px; --sf-s-36: 36px;
+  --sf-s-40: 40px; --sf-s-48: 48px; --sf-s-64: 64px;
+
+  /* Hörn, samma sorts namn */
+  --sf-r-6: 6px;   --sf-r-8: 8px;   --sf-r-10: 10px; --sf-r-12: 12px; --sf-r-14: 14px;
+  --sf-r-16: 16px; --sf-r-18: 18px; --sf-r-20: 20px; --sf-r-24: 24px; --sf-r-28: 28px;
+  --sf-r-rund: 999px;
+
+  /* Skuggor */
+  --sf-skugga-1: 0 1px 2px rgba(6,41,22,.06), 0 4px 14px rgba(6,41,22,.05);
+  --sf-skugga-2: 0 10px 30px rgba(6,41,22,.10);
+  --sf-skugga-3: 0 14px 36px rgba(6,41,22,.16);
+
+  /* Mått från underlaget till utvecklaren. Brytpunkten 1024px skrivs i @media, variabler fungerar inte där. */
+  --sf-knapp-hojd: 52px;
+  --sf-klickyta: 44px;
+  --sf-meny-bredd: 280px;
+  --sf-innehall-max: 1080px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --sf-fs-xl: 40px;
+    --sf-fs-1: 36px;
+    --sf-fs-2: 30px;
+    --sf-fs-3: 24px;
+    --sf-fs-4: 22px;
+    --sf-fs-ingress: 19px;
+    --sf-fs-brod: 18px;
+    --sf-fs-liten: 17px;
+    --sf-fs-etikett: 16px;
+  }
+}
