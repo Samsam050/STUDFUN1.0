@@ -42,3 +42,7 @@ Testerna startar en egen server med en tom datamapp och provar också det som sk
 | `public/vendor/pdfjs-6.4.299/` | pdf.js från npm (`pdfjs-dist`), utan delen som kör JavaScript i PDF:er. Byt hela mappen när en ny version kommer. |
 | `tester/` | Testerna, ett test per steg. |
 | `SERVER-KRAV.md` | Det servern behöver, till sessionen för Del A. |
+| `DATABAS.md` | Varje tabell och fält, och varför det behövs. |
+| `TESTER.md` | Testlistan: vad som testas, byggpromptens angripartester och vad som inte är prövat än. |
+| `VERSION-1-KLAR.md` | Avbockningen av "Version 1 är klar när", och vad som är kvar. |
+| `TILL-SAHRA.md` | Det Sahra behöver ta ställning till, till exempel informationstexten och hur länge data sparas. |

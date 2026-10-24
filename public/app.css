@@ -409,6 +409,9 @@ select.sf-falt { padding-right: 44px; }
   .sf-visare-huvud .sf-rad--tat { flex-wrap: nowrap; }
   .sf-visare-huvud [role="toolbar"] { flex-wrap: wrap; }
 }
+@media (max-width: 359px) {
+  .sf-visare-huvud .sf-rad--tat { flex-wrap: wrap; } /* de smalaste mobilerna får bläddringen på två rader */
+}
 
 /* Tudi */
 .sf-rad--topp { align-items: flex-start; }
