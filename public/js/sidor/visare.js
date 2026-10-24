@@ -368,9 +368,9 @@ export default async function visa(main, { kursId, filId }) {
     kursId: kurs.id,
     serSidan: true,
     etikett: "Din fråga om sidan",
-    platshallare: "Till exempel: Vad visar bilden?",
-    tomText: "Fråga något om sidan du tittar på. Tudi ser sidan och svarar utifrån ditt material.",
-    kontext: async () => ({ sida: { dokId: dok.id, nr: sida }, bild: await sidbild().catch(() => undefined) }),
+    platshallare: "Till exempel: Vad betyder det här?",
+    tomText: "Fråga något om sidan du tittar på. Tudi vet vilken sida du är på och svarar utifrån ditt material. Vill du att Tudi tittar på en bild, tryck Förklara den här sidan.",
+    kontext: async () => ({ sida: { dokId: dok.id, nr: sida } }),
     oppnaKalla: k => (k.dokId === dok.id ? ga(k.sida) : navigera(`/kurser/${kurs.id}/visa/${k.dokId}?sida=${k.sida}`)),
   });
   const duArPa = h("p", { class: "sf-du-ar-pa", "aria-live": "polite" });
