@@ -14,7 +14,7 @@ const TAL_PER_DAG = 40;
 const BITAR = 6;
 const MAX_FRAGA = 1000;
 const MAX_BILD = 2_500_000;  // tecken i data-adressen, ungefär 1,8 MB bild
-const TAK_TEXT = "Du har ställt dagens frågor till Tudi. Du kan fråga igen i morgon från klockan 06.00. Sidan, läsläget och övningarna fungerar som vanligt.";
+const TAK_TEXT = "Du har ställt dagens frågor till Tudi. Du kan fråga igen i morgon från klockan 06.00. Sidan, uppläsningen och övningarna fungerar som vanligt.";
 const INTE_I_MATERIALET = "Jag hittar inte svaret i ditt material. Prova att fråga på ett annat sätt, eller ladda upp material som tar upp det.";
 const FOLJD = {
   enklare: ["Enklare", "Förklara ditt senaste svar enklare, med vardagliga ord."],
@@ -185,7 +185,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt }) {
     };
   }, { maxBody: 3 * 1024 * 1024 });
 
-  /* Förklara eller ge exempel på ett ord i läsläget. Sparas inte i chatten. */
+  /* Förklara eller ge exempel på ett ord i visaren. Sparas inte i chatten. */
   rutt("POST", "/api/kurser/:kursId/ord", async ctx => {
     const uid = ctx.user.id, kursId = ctx.params.kursId;
     kurs(uid, kursId);

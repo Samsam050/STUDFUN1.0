@@ -100,9 +100,9 @@ test("jättestort anrop, trasig JSON och fel innehållstyp nekas", async () => {
 test("inställningar tar bara emot tillåtna värden och gäller bara den egna studenten", async () => {
   const a = await s.nyttKonto("a2@exempel.se");
   const b = await s.nyttKonto("b2@exempel.se");
-  assert.equal((await s.anrop("PUT", "/api/installningar", { kaka: a, data: { textstorlek: 99 } })).status, 400);
+  assert.equal((await s.anrop("PUT", "/api/installningar", { kaka: a, data: { tempo: "turbo" } })).status, 400);
   assert.equal((await s.anrop("PUT", "/api/installningar", { kaka: a, data: { typsnitt: "<script>" } })).status, 400);
-  const ok = await s.anrop("PUT", "/api/installningar", { kaka: a, data: { typsnitt: "atkinson", textstorlek: 30, user_id: 999 } });
+  const ok = await s.anrop("PUT", "/api/installningar", { kaka: a, data: { typsnitt: "atkinson", tempo: "snabbt", user_id: 999 } });
   assert.equal(ok.status, 200);
   assert.equal((await s.anrop("GET", "/api/jag", { kaka: a })).json.installningar.typsnitt, "atkinson");
   const jagB = await s.anrop("GET", "/api/jag", { kaka: b });

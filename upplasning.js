@@ -8,7 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const { forbruka } = require("./db");
 
-const MAX_TECKEN = 1500;           // per anrop, ungefär en del i läsläget
+const MAX_TECKEN = 1500;           // per anrop. Visaren skickar en mening i taget, högst 400 tecken
 const TAK_PER_DAG = 50000;         // tecken som inte redan finns sparade, ungefär en timme ljud
 const INSTRUKTION = "Läs texten högt på svenska för en vuxen student som tycker att läsning är svårt. " +
   "Lugnt och tydligt, med naturliga pauser vid punkt och kommatecken. Läs exakt det som står, och lägg inte till något. " +

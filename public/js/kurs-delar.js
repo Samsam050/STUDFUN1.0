@@ -14,7 +14,7 @@ export function kurskort(k, i, rubrik = "h2") {
     k.senast && h("p", { class: "sf-kurskort-rad" }, "Du läste senast ", h("strong", {}, `${k.senast.titel}, sida ${k.senast.sida}`)),
     !k.senast && k.bearbetas > 0 && h("p", { class: "sf-marke sf-marke--vantar sf-btn--sjalv" }, ikon("klocka", 18), k.bearbetas === 1 ? "1 PDF bearbetas" : `${k.bearbetas} PDF:er bearbetas`),
     h("div", { class: "sf-knapprad" },
-      k.senast && h("a", { href: `/kurser/${k.id}/las/${k.senast.dokId}?sida=${k.senast.sida}`, class: "sf-btn sf-btn--primar sf-btn--liten", "aria-label": `Fortsätt läsa ${k.senast.titel}` }, "Fortsätt läsa"),
+      k.senast && h("a", { href: `/kurser/${k.id}/visa/${k.senast.dokId}?sida=${k.senast.sida}`, class: "sf-btn sf-btn--primar sf-btn--liten", "aria-label": `Fortsätt läsa ${k.senast.titel}` }, "Fortsätt läsa"),
       h("a", { href: `/kurser/${k.id}`, class: `sf-btn ${k.senast ? "sf-btn--sekundar" : "sf-btn--primar"} sf-btn--liten`, "aria-label": `Öppna kursen ${k.namn}` }, "Öppna kursen"),
       !k.antalPdf && h("a", { href: `/kurser/${k.id}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-label": `Ladda upp PDF till ${k.namn}` }, "Ladda upp PDF")));
 }

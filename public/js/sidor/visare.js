@@ -1,13 +1,26 @@
 /* Visaren: PDF:en som den ser ut, en sida i taget, med Tudi bredvid.
-   När studenten frågar Tudi skickas sidnumret, sidans text och en bild av sidan med.
-   Bilden ritas här i webbläsaren, inte på servern. */
+   Läs upp läser sidan studenten är på, och ordet som läses markeras direkt på sidan.
+   När sidan är slut fortsätter uppläsningen på nästa sida. Tempot väljs i Inställningar.
+   Ovanpå sidan ligger ett lager med ett osynligt ord per ord i PDF:en: det är dem som markeras,
+   som går att trycka på (läs upp, förklara, ge exempel, läs härifrån) och som skärmläsare läser.
+   När studenten frågar Tudi skickas sidnumret, sidans text och en bild av sidan med. */
 import { h, ikon } from "../dom.js";
-import { api, navigera } from "../app.js";
-import { oppnaPdf, ritaSida } from "../pdf.js";
+import { api, app, navigera } from "../app.js";
+import { oppnaPdf, ritaSida, textrutor } from "../pdf.js";
+import { ordFranText, meningar } from "../delar.js";
+import * as ljud from "../upplasning.js";
 import { samtal } from "../tudi.js";
 import { kommIhagKurs } from "./fraga.js";
 
 const ZOOM = [0.75, 1, 1.25, 1.5, 2];
+/* Hur länge ett ord tar att säga, ungefär: bokstäverna plus en paus efter skiljetecken.
+   shortcut: markeringen räknas fram ur ljudets längd, inte ur talmotorns ordgränser. Byt om OpenAI börjar ge tidsstämplar för uppläst ljud. */
+const vikt = ord => ord.replace(/[^\p{L}\p{N}]/gu, "").length + 2 + (/[.!?:;]["”’)]*$/.test(ord) ? 6 : /,$/.test(ord) ? 3 : 0);
+const rent = ord => ord.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+/* Bokstäverna är olika breda. Ett vanligt PDF-typsnitt ger ordens plats mycket närmare än att räkna bokstäver. */
+const mattare = document.createElement("canvas").getContext("2d");
+mattare.font = "100px Helvetica, Arial, sans-serif";
+const matt = t => mattare.measureText(t).width;
 
 export default async function visa(main, { kursId, filId }) {
   let dok, kurs;
@@ -28,23 +41,26 @@ export default async function visa(main, { kursId, filId }) {
   const fran = Number(new URLSearchParams(location.search).get("sida"));
   let sida = Math.min(Math.max(fran || dok.senastSida || 1, 1), dok.sidor);
   let zoom = 1;
-  let pdf = null, sidtexter = [];
+  let pdf = null;
 
   const sidaAv = h("span", { class: "sf-etikett", "aria-live": "polite" });
   const forra = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten" }, ikon("tillbaka", 20), "Föregående");
   const nasta = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten" }, "Nästa", ikon("pil", 20));
   const sidFalt = h("input", { id: "v-sida", class: "sf-falt sf-sidfalt", type: "text", inputmode: "numeric", autocomplete: "off" });
   const zoomText = h("span", { class: "sf-zoom-text" });
-  const lasLank = h("a", { class: "sf-btn sf-btn--accent sf-btn--liten" }, ikon("dokument", 20), "Läsläge");
+  const spelKnapp = h("button", { type: "button", class: "sf-btn sf-btn--accent sf-btn--liten sf-spelknapp" });
   const canvas = h("canvas", { "aria-hidden": "true" });
-  const sidtext = h("div", { class: "sf-dold" });
-  const papper = h("div", { class: "sf-papper", tabindex: "0", role: "group", "aria-roledescription": "sida" }, canvas, sidtext);
+  const ordlager = h("div", { class: "sf-ordlager", role: "group", "aria-label": "Texten på sidan. Tryck på ett ord för att få det uppläst eller förklarat." });
+  const meny = h("div", { class: "sf-ordmeny", role: "dialog", hidden: true });
+  const papper = h("div", { class: "sf-papper", tabindex: "0", role: "group", "aria-roledescription": "sida" }, canvas, ordlager, meny);
   const status = h("div", { class: "sf-visare-status" });
-  const yta = h("div", { class: "sf-visare-yta" }, status, papper);
+  const ljudFel = h("div", { class: "sf-visare-status" });
+  const yta = h("div", { class: "sf-visare-yta" }, status, ljudFel, papper);
 
   forra.addEventListener("click", () => ga(sida - 1));
   nasta.addEventListener("click", () => ga(sida + 1));
   papper.addEventListener("keydown", e => {
+    if (e.target !== papper) return; // piltangenterna på ett ord flyttar mellan orden
     if (e.key === "ArrowLeft") { e.preventDefault(); ga(sida - 1); }
     if (e.key === "ArrowRight") { e.preventDefault(); ga(sida + 1); }
   });
@@ -57,46 +73,199 @@ export default async function visa(main, { kursId, filId }) {
   });
   const zooma = steg => { zoom = ZOOM[Math.min(ZOOM.length - 1, Math.max(0, ZOOM.indexOf(zoom) + steg))]; rita(); };
 
+  /* Orden på sidan som visas nu. ordEl[i] är ordets rutor, där den första är en knapp. */
+  let ord = [], M = [], ordEl = [], aktiv = 0, valt = -1, lases = -1;
+  let ritad = Promise.resolve();
+
   let sparTimer = 0;
-  function ga(nr) {
+  /* fortsatt: uppläsningen går vidare till den här sidan, annars stoppas den */
+  function ga(nr, fortsatt = false) {
     const ny = Math.min(Math.max(Number(nr) || 1, 1), dok.sidor); // ett tal utanför PDF:en ger första eller sista sidan
+    if (!fortsatt) stoppa();
     if (ny === sida && pdf) return rita();
     sida = ny;
     history.replaceState(null, "", `/kurser/${kurs.id}/visa/${dok.id}?sida=${sida}`);
-    rita();
     clearTimeout(sparTimer);
     sparTimer = setTimeout(() => api("PUT", `/api/dokument/${dok.id}/position`, { sida }).catch(() => {}), 1000);
+    return rita();
   }
 
-  async function rita() {
+  function rita() {
     sidaAv.textContent = `Sida ${sida} av ${dok.sidor}`;
     sidFalt.value = String(sida);
     forra.disabled = sida <= 1;
     nasta.disabled = sida >= dok.sidor;
     zoomText.textContent = `${Math.round(zoom * 100)} %`;
-    lasLank.href = `/kurser/${kurs.id}/las/${dok.id}?sida=${sida}`;
-    papper.setAttribute("aria-label", `Sida ${sida} av ${dok.sidor}. Texten på sidan kan läsas upp i läsläget.`);
-    sidtext.textContent = sidtexter[sida - 1] || "";
+    papper.setAttribute("aria-label", `Sida ${sida} av ${dok.sidor}`);
     duArPa.replaceChildren(ikon("dokument", 20), `Du är på sida ${sida}`);
     visaTudi.lastChild.textContent = `Fråga Tudi om sida ${sida}`;
-    if (!pdf) return;
+    if (!pdf) return ritad;
+    const nr = sida;
     status.replaceChildren(h("p", { role: "status", class: "sf-hjalp" }, `Hämtar sida ${sida} …`));
-    try {
-      await ritaSida(pdf, sida, canvas, Math.min(yta.clientWidth - 32, 900), zoom);
-      status.replaceChildren();
-    } catch (e) {
-      if (e && e.name === "RenderingCancelledException") return;
-      visaFel();
+    ritad = (async () => {
+      try {
+        const viewport = await ritaSida(pdf, nr, canvas, Math.min(yta.clientWidth - 32, 900), zoom);
+        const nyaOrd = ordFranText(await textrutor(pdf, nr, viewport), matt);
+        if (nr !== sida) return;
+        ritaOrd(nyaOrd);
+        status.replaceChildren();
+      } catch (e) {
+        if (e && e.name === "RenderingCancelledException") return;
+        visaFel();
+      }
+    })();
+    return ritad;
+  }
+
+  /* Lägger ett osynligt ord ovanpå varje ord i PDF:en */
+  function ritaOrd(nyaOrd) {
+    stangMeny(false);
+    ord = nyaOrd;
+    M = meningar(ord);
+    aktiv = 0; valt = -1; lases = -1;
+    ordEl = ord.map((o, i) => o.rutor.map((r, k) => {
+      const el = h(k === 0 ? "button" : "span", k === 0 ? { type: "button", class: "sf-pdf-ord", tabindex: i === 0 ? "0" : "-1", "aria-expanded": "false" } : { class: "sf-pdf-ord", "aria-hidden": "true" },
+        k === 0 ? o.text : "");
+      Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${Math.max(r.b, 4)}px`, height: `${r.h}px` });
+      if (k === 0) el.addEventListener("click", () => { satAktiv(i, false); oppnaMeny(i); });
+      return el;
+    }));
+    ordlager.replaceChildren(...ordEl.flat());
+    spelKnapp.disabled = !ord.length && sida >= dok.sidor;
+  }
+  ordlager.addEventListener("keydown", e => {
+    const flytt = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity }[e.key];
+    if (flytt === undefined || !ord.length) return;
+    e.preventDefault();
+    satAktiv(Math.min(ord.length - 1, Math.max(0, aktiv + flytt)), true);
+  });
+  meny.addEventListener("keydown", e => { if (e.key === "Escape") { e.preventDefault(); stangMeny(); } });
+
+  function satAktiv(i, fokus) {
+    if (ordEl[aktiv]) ordEl[aktiv][0].tabIndex = -1;
+    aktiv = i;
+    ordEl[i][0].tabIndex = 0;
+    if (fokus) ordEl[i][0].focus();
+  }
+  const meningMed = i => M.findIndex(m => i >= m.fran && i <= m.till);
+  const meningText = mi => ord.slice(M[mi].fran, M[mi].till + 1).map(o => o.text).join(" ");
+
+  /* Menyn för ett ord. Esc stänger och fokus går tillbaka till ordet. */
+  function oppnaMeny(i) {
+    stangMeny(false);
+    valt = i;
+    const b = ordEl[i][0];
+    const w = rent(ord[i].text) || ord[i].text;
+    ordEl[i].forEach(el => el.classList.add("sf-pdf-ord--vald"));
+    b.setAttribute("aria-expanded", "true");
+    const lasKnapp = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten" }, ikon("spela", 20), "Läs upp");
+    const info = h("p", { class: "sf-ordmeny-info", role: "status" });
+    lasKnapp.addEventListener("click", async () => {
+      stoppa();
+      try { await ljud.spela(await ljud.hamta(dok.id, w), ljud.TEMPO[app.jag.installningar.tempo] || 1); }
+      catch (e) { info.textContent = e.message; }
+    });
+    /* Förklara och Ge exempel: Tudi svarar utifrån kursmaterialet, med meningen som sammanhang */
+    const fraga = typ => async () => {
+      info.textContent = "Tudi tänker …";
+      try {
+        const r = await api("POST", `/api/kurser/${kurs.id}/ord`, { ord: w, typ, mening: meningText(meningMed(i)).slice(0, 800), sida: { dokId: dok.id, nr: sida } });
+        info.textContent = r.svar + (r.kallor.length ? ` (${r.kallor.map(k => `sida ${k.sida}`).join(", ")})` : "");
+      } catch (e) { info.textContent = e.message; }
+    };
+    meny.setAttribute("aria-label", `Val för ordet ${w}`);
+    meny.replaceChildren(
+      h("div", { class: "sf-rad-mellan" }, h("span", { class: "sf-ordmeny-ord" }, w),
+        h("button", { type: "button", class: "sf-btn sf-btn--liten sf-btn--text", onclick: () => stangMeny() }, "Stäng")),
+      h("div", { class: "sf-knapprad" }, lasKnapp,
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: fraga("forklara") }, "Förklara"),
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: fraga("exempel") }, "Ge exempel"),
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: () => lasFran(meningMed(i)) }, "Läs härifrån")),
+      info);
+    const r = ord[i].rutor[0];
+    meny.style.top = `${r.y + r.h + 8}px`;
+    meny.style.left = `${Math.max(0, Math.min(r.x - 8, papper.clientWidth - 360))}px`;
+    meny.hidden = false;
+    lasKnapp.focus();
+  }
+  function stangMeny(fokusTillbaka = true) {
+    if (meny.hidden) return;
+    meny.hidden = true;
+    (ordEl[valt] || []).forEach(el => el.classList.remove("sf-pdf-ord--vald"));
+    const b = ordEl[valt]?.[0];
+    if (b) { b.setAttribute("aria-expanded", "false"); if (fokusTillbaka) b.focus(); }
+    valt = -1;
+  }
+
+  /* Uppläsningen, mening för mening. Nästa mening hämtas medan den här spelas. */
+  let korning = 0, spelar = false;
+  function ritaKnapp() { spelKnapp.replaceChildren(ikon(spelar ? "paus" : "spela", 20), spelar ? "Pausa" : "Läs upp"); }
+  function markera(i) {
+    if (i === lases) return;
+    (ordEl[lases] || []).forEach(el => el.classList.remove("sf-pdf-ord--lases"));
+    lases = i;
+    if (!ordEl[i]) return;
+    ordEl[i].forEach(el => el.classList.add("sf-pdf-ord--lases"));
+    const r = ordEl[i][0].getBoundingClientRect(), y = yta.getBoundingClientRect();
+    if (r.top < y.top + 40 || r.bottom > y.bottom - 40) ordEl[i][0].scrollIntoView({ block: "center", inline: "nearest" });
+  }
+  function stoppa() {
+    korning++;
+    spelar = false;
+    ljud.stoppa();
+    markera(-1);
+    ritaKnapp();
+  }
+  spelKnapp.addEventListener("click", () => {
+    if (spelar) { ljud.pausa(); spelar = false; return ritaKnapp(); }
+    if (ljud.arPausad() && lases >= 0) { spelar = true; ljud.fortsatt(); return ritaKnapp(); }
+    lasFran(Math.max(0, meningMed(valt >= 0 ? valt : aktiv)));
+  });
+  async function lasFran(mi) {
+    const mitt = ++korning;
+    spelar = true;
+    ritaKnapp();
+    ljudFel.replaceChildren();
+    stangMeny(false);
+    for (;;) {
+      for (let i = mi; i < M.length; i++) {
+        if (M[i + 1]) ljud.hamta(dok.id, meningText(i + 1)).catch(() => {});
+        const text = meningText(i);
+        let url;
+        try { url = await ljud.hamta(dok.id, text); }
+        catch (e) { if (mitt === korning) { stoppa(); visaLjudFel(e.message, i); } return; }
+        if (mitt !== korning) return;
+        const vikter = ord.slice(M[i].fran, M[i].till + 1).map(o => vikt(o.text));
+        const summa = vikter.reduce((a, b) => a + b, 0);
+        const forsta = M[i].fran;
+        try {
+          await ljud.spela(url, ljud.TEMPO[app.jag.installningar.tempo] || 1, andel => {
+            let acc = 0, k = 0;
+            while (k < vikter.length - 1 && (acc + vikter[k]) / summa < andel) acc += vikter[k++];
+            markera(forsta + k);
+          });
+        } catch (e) { if (mitt === korning) { stoppa(); visaLjudFel(e.message, i); } return; }
+        if (mitt !== korning) return;
+      }
+      if (sida >= dok.sidor) break;
+      await ga(sida + 1, true); // när sidan är slut fortsätter uppläsningen på nästa sida
+      if (mitt !== korning) return;
+      mi = 0;
     }
+    stoppa();
+  }
+  function visaLjudFel(besked, mening) {
+    const standard = besked === "Uppläsningen fungerar inte just nu.";
+    ljudFel.replaceChildren(h("div", { class: "sf-medd sf-medd--fel sf-medd--knapp", role: "alert" }, ikon("fel"),
+      h("p", { class: "sf-vaxer" }, standard ? "Uppläsningen fungerar inte just nu. Du kan fortsätta läsa själv under tiden." : besked),
+      h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: () => lasFran(mening) }, "Försök igen")));
   }
 
   function visaFel() {
     status.replaceChildren(h("div", { class: "sf-medd-stor sf-medd-stor--fel sf-ruta", role: "alert" },
       h("div", { class: "sf-rad" }, ikon("fel", 28), h("p", { class: "sf-medd-rubrik" }, `Sida ${sida} går inte att visa`)),
-      h("p", {}, "Det kan bero på anslutningen. Försök igen, eller läs texten på sidan i läsläget."),
-      h("div", { class: "sf-knapprad" },
-        h("button", { type: "button", class: "sf-btn sf-btn--primar", onclick: ladda }, "Försök igen"),
-        h("a", { href: `/kurser/${kurs.id}/las/${dok.id}?sida=${sida}`, class: "sf-btn sf-btn--sekundar" }, "Öppna i läsläget"))));
+      h("p", {}, "Det kan bero på anslutningen. Försök igen om en stund."),
+      h("button", { type: "button", class: "sf-btn sf-btn--primar sf-btn--sjalv", onclick: ladda }, "Försök igen")));
   }
 
   async function ladda() {
@@ -104,10 +273,7 @@ export default async function visa(main, { kursId, filId }) {
     try {
       const svar = await fetch(`/api/dokument/${dok.id}/fil`);
       if (!svar.ok) throw new Error();
-      [pdf, { sidor: sidtexter }] = await Promise.all([
-        oppnaPdf(new Uint8Array(await svar.arrayBuffer())),
-        api("GET", `/api/dokument/${dok.id}/sidor`).catch(() => ({ sidor: [] })),
-      ]);
+      pdf = await oppnaPdf(new Uint8Array(await svar.arrayBuffer()));
       rita();
     } catch { visaFel(); }
   }
@@ -117,6 +283,7 @@ export default async function visa(main, { kursId, filId }) {
   addEventListener("resize", vidStorlek);
   const stad = new MutationObserver(() => {
     if (main.isConnected) return;
+    stoppa(); // inget ljud ska fortsätta när studenten har lämnat sidan
     removeEventListener("resize", vidStorlek);
     tudi.stang();
     pdf?.loadingTask.destroy();
@@ -166,19 +333,21 @@ export default async function visa(main, { kursId, filId }) {
     h("button", { type: "submit", class: "sf-btn sf-btn--sekundar sf-btn--liten" }, "Gå"));
   form.addEventListener("submit", e => { e.preventDefault(); ga(sidFalt.value); papper.focus(); });
 
+  ritaKnapp();
   main.className = "sf-visare";
   main.append(
     h("header", { class: "sf-visare-huvud" },
       h("div", { class: "sf-rad sf-rad--tat sf-vaxer" },
         h("a", { href: `/kurser/${kurs.id}`, class: "sf-tillbaka" }, ikon("tillbaka", 20), kurs.namn),
         h("div", { class: "sf-stapel sf-visare-titel" }, h("h1", {}, dok.titel), sidaAv)),
-      h("div", { class: "sf-rad sf-rad--tat", role: "toolbar", "aria-label": "Bläddra och zooma" },
+      h("div", { class: "sf-rad sf-rad--tat", role: "toolbar", "aria-label": "Läs upp, bläddra och zooma" },
+        spelKnapp,
         h("div", { class: "sf-rad sf-rad--tat" }, forra, form, nasta),
         h("div", { class: "sf-rad sf-rad--tat", role: "group", "aria-label": "Zoom" },
           h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten sf-btn--ruta", "aria-label": "Zooma ut", onclick: () => zooma(-1) }, "−"),
           zoomText,
           h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten sf-btn--ruta", "aria-label": "Zooma in", onclick: () => zooma(1) }, "+")),
-        lasLank, visaTudi)),
+        visaTudi)),
     h("div", { class: "sf-visare-kropp" }, yta, panel));
   rita();
   ladda();

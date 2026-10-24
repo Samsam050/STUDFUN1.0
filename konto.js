@@ -11,7 +11,6 @@ const scrypt = promisify(crypto.scrypt);
 const SESSION_TID = 30 * 24 * 3600 * 1000;
 const GODKANNANDE_VERSION = "2026-10-24";
 const LOSEN_MIN = 10, LOSEN_MAX = 200;
-const TEXTSTORLEKAR = [20, 22, 26, 30];
 const TYPSNITT = ["lexend", "atkinson"];
 const TEMPON = ["langsamt", "normalt", "snabbt"];
 const ROSTER = ["marin", "cedar", "shimmer"]; // Röst 1, 2 och 3 i Inställningar
@@ -80,8 +79,8 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
   }
 
   function installningar(userId) {
-    const s = db.prepare("SELECT textstorlek, typsnitt, rost, tempo FROM settings WHERE user_id = ?").get(userId);
-    return { textstorlek: s.textstorlek, typsnitt: s.typsnitt, rost: s.rost || ROSTER[0], tempo: s.tempo };
+    const s = db.prepare("SELECT typsnitt, rost, tempo FROM settings WHERE user_id = ?").get(userId);
+    return { typsnitt: s.typsnitt, rost: s.rost || ROSTER[0], tempo: s.tempo };
   }
 
   rutt("POST", "/api/konto", async ctx => {
@@ -140,12 +139,11 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
 
   rutt("PUT", "/api/installningar", ctx => {
     const b = ctx.body;
-    if (b.textstorlek !== undefined && !TEXTSTORLEKAR.includes(b.textstorlek)) throw new Fel(400, "Den textstorleken finns inte.");
     if (b.typsnitt !== undefined && !TYPSNITT.includes(b.typsnitt)) throw new Fel(400, "Det typsnittet finns inte.");
     if (b.tempo !== undefined && !TEMPON.includes(b.tempo)) throw new Fel(400, "Det tempot finns inte.");
     if (b.rost !== undefined && !ROSTER.includes(b.rost)) throw new Fel(400, "Den rösten finns inte.");
-    db.prepare("UPDATE settings SET textstorlek = COALESCE(?, textstorlek), typsnitt = COALESCE(?, typsnitt), tempo = COALESCE(?, tempo), rost = COALESCE(?, rost) WHERE user_id = ?")
-      .run(b.textstorlek ?? null, b.typsnitt ?? null, b.tempo ?? null, b.rost ?? null, ctx.user.id);
+    db.prepare("UPDATE settings SET typsnitt = COALESCE(?, typsnitt), tempo = COALESCE(?, tempo), rost = COALESCE(?, rost) WHERE user_id = ?")
+      .run(b.typsnitt ?? null, b.tempo ?? null, b.rost ?? null, ctx.user.id);
     return installningar(ctx.user.id);
   });
 

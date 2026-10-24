@@ -1,4 +1,4 @@
-/* Steg 4: visaren och läsläget. Sidtext, var studenten slutade, uppläsning med sparat ljud och dagstak.
+/* Steg 4: visaren med uppläsning. Ord och meningar på sidan, var studenten slutade, uppläsning med sparat ljud och dagstak.
    Kör: npm test */
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -23,21 +23,25 @@ after(() => { s.stang(); oa.stang(); });
 
 const upplas = (kaka, text, dok = dokA) => s.anrop("POST", `/api/dokument/${dok}/upplas`, { kaka, data: { text } });
 
-test("läsläget delar texten utan att tappa något, högst fyra meningar per del och aldrig över två sidor", async () => {
-  const { delaUpp } = await import("../public/js/delar.js");
-  const sidor = ["En. Två. Tre. Fyra. Fem. Sex. Sju.", "", "x".repeat(1000), "Kort sida utan punkt"];
-  const delar = delaUpp(sidor);
-  const utan = t => t.replace(/\s/g, "");
-  assert.equal(utan(delar.flatMap(d => d.meningar).join("")), utan(sidor.join("")));
-  assert.ok(delar.every(d => d.meningar.length >= 1 && d.meningar.length <= 4));
-  assert.ok(delar.every(d => d.meningar.every(m => m.length <= 400)), "ingen mening är för lång för uppläsningen");
-  assert.deepEqual([...new Set(delar.map(d => d.sida))], [1, 3, 4]);
-});
-
-test("sidtexten kommer sida för sida, och tomma sidor blir tomma", async () => {
-  const r = await s.anrop("GET", `/api/dokument/${dokA}/sidor`, { kaka: a });
-  assert.equal(r.status, 200);
-  assert.deepEqual(r.json.sidor, SIDOR);
+test("orden på en PDF-sida hittas med sina rutor, och inget ord tappas", async () => {
+  const { ordFranText, meningar } = await import("../public/js/delar.js");
+  const bitar = [
+    { str: "Ett anbud gäller", x: 0, y: 0, b: 160, h: 10, eol: false },
+    { str: " ", x: 160, y: 0, b: 5, h: 10, eol: false },
+    { str: "bara under en be-", x: 165, y: 0, b: 170, h: 10, eol: true },
+    { str: "handling. Ny", x: 0, y: 12, b: 120, h: 10, eol: false },
+    { str: "het!", x: 120, y: 12, b: 40, h: 10, eol: true },
+    { str: "x".repeat(500), x: 0, y: 24, b: 500, h: 10, eol: true },
+  ];
+  const ord = ordFranText(bitar);
+  assert.deepEqual(ord.slice(0, 8).map(o => o.text), ["Ett", "anbud", "gäller", "bara", "under", "en", "behandling.", "Nyhet!"]);
+  assert.equal(ord[6].rutor.length, 2, "ett avstavat ord markeras på båda raderna");
+  assert.equal(ord[7].rutor.length, 2, "två textbitar utan mellanslag är ett ord");
+  assert.deepEqual(ord[1].rutor[0], { x: 40, y: 0, b: 50, h: 10 }, "ordets ruta räknas fram ur bokstäverna");
+  const M = meningar(ord);
+  assert.deepEqual(M.map(m => [m.fran, m.till]), [[0, 6], [7, 7], [8, 8]]);
+  assert.equal(M.flatMap(m => ord.slice(m.fran, m.till + 1)).length, ord.length, "varje ord hör till en mening");
+  assert.deepEqual(meningar([]), []);
 });
 
 test("var studenten slutade sparas och används nästa gång", async () => {
@@ -49,12 +53,11 @@ test("var studenten slutade sparas och används nästa gång", async () => {
   }
 });
 
-test("konto B kan inte läsa texten, flytta positionen eller få A:s text uppläst", async () => {
-  assert.equal((await s.anrop("GET", `/api/dokument/${dokA}/sidor`, { kaka: b })).status, 404);
+test("konto B kan inte flytta positionen eller få A:s text uppläst", async () => {
   assert.equal((await s.anrop("PUT", `/api/dokument/${dokA}/position`, { kaka: b, data: { sida: 2 } })).status, 404);
   assert.equal((await upplas(b, "Första sidan.")).status, 404);
   assert.equal((await s.anrop("GET", `/api/dokument/${dokA}`, { kaka: a })).json.senastSida, 3, "A:s position är orörd");
-  for (const [metod, adress, data] of [["GET", `/api/dokument/${dokA}/sidor`], ["PUT", `/api/dokument/${dokA}/position`, { sida: 1 }],
+  for (const [metod, adress, data] of [["PUT", `/api/dokument/${dokA}/position`, { sida: 1 }],
     ["POST", `/api/dokument/${dokA}/upplas`, { text: "x" }], ["POST", "/api/rostprov", { rost: "marin" }]]) {
     assert.equal((await s.anrop(metod, adress, { data })).status, 401, `${metod} ${adress} utan inloggning`);
   }

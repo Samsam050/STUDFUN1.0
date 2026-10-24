@@ -7,7 +7,7 @@ const antalOrd = (n, en, flera) => (n === 1 ? en : `de ${n} ${flera}`);
 
 /* Rubrik, text, Tudis pratbubbla och knappar för varje sorts nästa steg */
 function nastaSteg(n) {
-  const las = (d, text, klass = "sf-btn--accent") => h("a", { href: `/kurser/${d.kursId}/las/${d.dokId}?sida=${d.sida}`, class: `sf-btn ${klass}` }, text);
+  const las = (d, text, klass = "sf-btn--accent") => h("a", { href: `/kurser/${d.kursId}/visa/${d.dokId}?sida=${d.sida}`, class: `sf-btn ${klass}` }, text);
   switch (n.typ) {
     case "repetera": return {
       rubrik: `Repetera ${antalOrd(n.antal, "den fråga", "frågor")} du svarade fel på i ${n.kurs}`,
@@ -25,9 +25,9 @@ function nastaSteg(n) {
     };
     case "fortsatt": return {
       rubrik: `Fortsätt läsa ${n.titel}`,
-      text: `Du slutade på sida ${n.sida} i ${n.kurs}. Läsläget öppnar där.`,
+      text: `Du slutade på sida ${n.sida} i ${n.kurs}. Filen öppnas där, och du kan få den uppläst.`,
       bubbla: "Välkommen tillbaka!",
-      knappar: [las(n, "Fortsätt läsa"), h("a", { href: `/kurser/${n.kursId}/visa/${n.dokId}?sida=${n.sida}`, class: "sf-btn sf-btn--ljus" }, "Visa originalet")],
+      knappar: [las(n, "Fortsätt läsa")],
     };
     case "borja": return {
       rubrik: `Börja läsa ${n.titel}`,

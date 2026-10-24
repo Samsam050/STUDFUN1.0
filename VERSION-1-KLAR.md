@@ -21,9 +21,9 @@ Listan kommer från `STUDFUN-1.0-VERSIONER-OCH-PLAN.md`. Avbockad den 24 oktober
 | Konto och inloggning | Klart |
 | Skapa kurs | Klart |
 | Ladda upp PDF | Klart. Andra filtyper nekas med "Bara PDF just nu" |
-| Visa originalet med Tudi bredvid | Klart. Tudi får sidan, dess text och en bild av den |
+| Visa originalet med Tudi bredvid | Klart. Tudi får sidan, dess text och en bild av den. Visaren är nu den enda läsvyn |
 | Börja här | Inte byggt. Planfilen säger "om tid finns" |
-| Läsläge för dyslexi | Klart: uppläsning, tryck på ett ord (läs upp, förklara, ge exempel), textstorlek, läslinjal, korta delar |
+| Läsläge för dyslexi | Ändrat: läsläget är borttaget, enligt Hayssams beslut den 24 oktober 2026. Visaren läser upp sidan och markerar ordet som läses direkt på PDF:en, och fortsätter på nästa sida. Tryck på ett ord ger läs upp, förklara, ge exempel och läs härifrån. Tempo och röst väljs i Inställningar. Textstorlek och läslinjal finns inte längre: zoomen i visaren ersätter textstorleken. **Planfilen behöver uppdateras.** |
 | Tudi svarar på frågor om materialet | Klart |
 | Olika sätt att förklara | Klart: Enklare, Steg för steg, Ge ett exempel, Förklara på ett annat sätt |
 | Quiz från materialet | Klart: flerval och korta svar |

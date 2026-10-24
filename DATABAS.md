@@ -26,7 +26,7 @@ Databasen är inställd så att raderade rader skrivs över med nollor (`secure_
 | Fält | Varför |
 |---|---|
 | `user_id` | En rad per student. |
-| `textstorlek` | Textstorleken i läsläget: 20, 22, 26 eller 30 px. |
+| `textstorlek` | Används inte längre. Fanns för läsläget, som togs bort den 24 oktober 2026. Kolumnen ligger kvar, eftersom gamla ändringar i schemat aldrig skrivs om. |
 | `typsnitt` | `lexend` eller `atkinson`. |
 | `rost`, `tempo` | För uppläsningen, som kommer i steg 4. |
 
@@ -52,7 +52,7 @@ En student kan ha högst 50 kurser.
 | `fil` | Slumpat namn på PDF:en i `data/pdf/`, till exempel `1f69…e075.pdf`. Aldrig studentens filnamn. |
 | `storlek` | Filens storlek i byte, högst 50 MB. |
 | `skapad` | Ordningen i listan, nyaste först. |
-| `senast_sida` | Sidan studenten senast läste. Visaren och läsläget öppnar där. |
+| `senast_sida` | Sidan studenten senast läste. Visaren öppnar där. |
 | `senast_last` | När studenten senast läste i filen. Tom om filen aldrig har öppnats. Nästa steg och "Du läste senast" bygger på den. |
 
 En student kan ha högst 20 filer.
@@ -77,7 +77,7 @@ En student kan ha högst 20 filer.
 Uppläst ljud sparas som filer i `data/upplasning/<filens id>/`, så att samma text bara hämtas en gång från OpenAI. Mappen raderas när filen, kursen, allt material eller kontot raderas. Röstproven i Inställningar ligger i `data/upplasning/prov/` och innehåller ingen text från studenter.
 
 ## messages
-Samtalet med Tudi i en kurs. Förklaringar av enskilda ord i läsläget sparas inte.
+Samtalet med Tudi i en kurs. Förklaringar av enskilda ord i visaren sparas inte.
 
 | Fält | Varför |
 |---|---|

@@ -42,9 +42,9 @@ Varje testfil startar en egen server med en tom datamapp och en låtsas‑OpenAI
 
 Med låtsas‑OpenAI. Talet gjordes av Macens svenska röst Alva.
 
-* Hela flödet: skapa konto, kurs, ladda upp, läsläget med uppläsning, visaren, Fråga Tudi, quiz, flashcards, nästa steg och repetition.
+* Hela flödet: skapa konto, kurs, ladda upp, visaren med uppläsning där ordet som läses markeras på PDF:en, Fråga Tudi, quiz, flashcards, nästa steg och repetition.
 * **Mobil 375 px och 320 px:** ingen sida scrollar i sidled. Visarens bläddring radbryts på 320 px.
-* **Tangentbordet:** hoppa‑länken först, logisk tabbordning och synlig fokusram överallt. Läsläget har en tabbstopp för texten och piltangenter mellan orden. Dialoger håller fokus och lämnar tillbaka det. Inloggning, inställningar och radering fungerar utan mus.
+* **Tangentbordet:** hoppa‑länken först, logisk tabbordning och synlig fokusram överallt. Orden på PDF:en i visaren har en tabbstopp, och piltangenterna går mellan orden. Dialoger håller fokus och lämnar tillbaka det. Inloggning, inställningar och radering fungerar utan mus.
 * **Granskning av varje sida:** inga knappar eller länkar utan namn, inga fält utan etikett, inga bilder utan alt, klickytor minst 44 px, ingen text under 15 px.
 * **Kontrast:** alla färgpar i designsystemet och de som lagts till i koden klarar WCAG AA. Det sämsta är 4,98:1, orange text på ljusorange.
 * **Inga CSP‑fel** i konsolen.

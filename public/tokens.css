@@ -59,8 +59,6 @@
   --sf-platshallare: #EDE6D8;  /* laddningsrader och förloppsstapel */
   --sf-platshallare-2: #F2ECE0;
   --sf-dialog-bakgrund: rgba(6, 41, 22, .55);
-  --sf-linjal-dim: rgba(255, 253, 248, .62);   /* tonar ner raderna utanför läslinjalen */
-  --sf-linjal-band: rgba(254, 133, 34, .07);
 
   /* Typsnitt. Atkinson Hyperlegible väljs i Inställningar. */
   --sf-font: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
@@ -80,9 +78,8 @@
   --sf-lh-rubrik: 1.25; --sf-lh-brod: 1.6; --sf-lh-las: 1.8;
   --sf-max-rad: 66ch;
 
-  /* Läsläget. Stegen kommer från Inställningar: Mellan, Stor, Större, Störst. */
-  --sf-fs-las: 22px;      /* standard, Stor */
-  --sf-fs-las-1: 20px; --sf-fs-las-2: 22px; --sf-fs-las-3: 26px; --sf-fs-las-4: 30px;
+  /* Större lästext, till exempel provtexten i Inställningar och baksidan på flashcards */
+  --sf-fs-las: 22px;
 
   /* Avstånd. Namnet är antalet px, så värdet i designen går att slå upp direkt. */
   --sf-s-2: 2px;   --sf-s-4: 4px;   --sf-s-6: 6px;   --sf-s-8: 8px;   --sf-s-10: 10px;

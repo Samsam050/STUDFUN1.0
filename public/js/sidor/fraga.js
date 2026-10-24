@@ -37,22 +37,8 @@ export default async function visa(main, { kursId }) {
   kommIhagKurs(kurs.id);
   const klara = dokument.filter(d => d.status === "klar");
 
-  /* Kommer studenten från läsläget följer sidan med som sammanhang, tills studenten tar bort den */
-  const p = new URLSearchParams(location.search);
-  const fil = dokument.find(d => d.id === Number(p.get("fil")));
-  let sida = fil && Number(p.get("sida")) >= 1 ? { dokId: fil.id, nr: Math.min(Number(p.get("sida")), fil.sidor), titel: fil.titel } : null;
-  const sammanhang = h("div", { class: "sf-rad" });
-  function ritaSammanhang() {
-    sammanhang.replaceChildren(...(sida ? [
-      h("span", { class: "sf-marke sf-marke--klar" }, ikon("dokument", 18), `Om ${sida.titel}, sida ${sida.nr}`),
-      h("button", { type: "button", class: "sf-btn sf-btn--liten sf-btn--text", onclick: () => { sida = null; history.replaceState(null, "", location.pathname); ritaSammanhang(); } }, "Ta bort"),
-    ] : []));
-  }
-  ritaSammanhang();
-
   const s = samtal({
     kursId: kurs.id,
-    kontext: async () => (sida ? { sida: { dokId: sida.dokId, nr: sida.nr } } : {}),
     oppnaKalla: k => navigera(`/kurser/${kurs.id}/visa/${k.dokId}?sida=${k.sida}`),
   });
   if (!klara.length) {
@@ -71,7 +57,6 @@ export default async function visa(main, { kursId }) {
           h("div", { class: "sf-stapel" }, h("h1", { id: "chatt-rubrik" }, "Fråga Tudi"),
             h("p", { class: "sf-hjalp" }, "Svarar utifrån ditt material och visar sidan"))),
         h("div", { class: "sf-rad sf-rad--tat" }, h("label", { for: "kursval", class: "sf-etikett-stor" }, "Kurs"), kursval)),
-      sammanhang,
       !klara.length && h("div", { class: "sf-medd sf-medd--knapp sf-medd--info", role: "status" }, ikon("dokument"),
         h("p", { class: "sf-vaxer" }, dokument.length ? "Tudi gör i ordning ditt material. Du kan fråga när en PDF är klar." : "Kursen har inget material än. Ladda upp en PDF, så kan Tudi svara utifrån den."),
         !dokument.length && h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten" }, "Ladda upp PDF")),

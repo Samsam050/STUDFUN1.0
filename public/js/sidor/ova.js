@@ -66,7 +66,7 @@ async function starta(main, kursId, typ, rita, repetera = false) {
   await ny();
 }
 
-const sidaLank = (kurs, svar, text) => h("a", { href: `/kurser/${kurs.id}/las/${svar.dokId}?sida=${svar.sida}`, class: "sf-kalla" }, ikon("dokument", 18), text);
+const sidaLank = (kurs, svar, text) => h("a", { href: `/kurser/${kurs.id}/visa/${svar.dokId}?sida=${svar.sida}`, class: "sf-kalla" }, ikon("dokument", 18), text);
 const lasUpp = (dokId, text) => {
   const knapp = h("button", { type: "button", class: "sf-btn sf-btn--sekundar" }, ikon("hogtalare", 22), "Läs upp");
   knapp.addEventListener("click", async () => {
@@ -152,7 +152,7 @@ function ritaQuiz({ kurs, kort, innehall, status, ny }) {
         h("span", { class: "sf-nasta-etikett" }, "Nästa steg"),
         h("p", {}, forstaFel ? `Läs sida ${forstaFel.svar.sida} igen. Där står svaret på den första frågan du svarade fel på.` : "Gör ett nytt quiz, eller öva med flashcards."),
         h("div", { class: "sf-knapprad" },
-          forstaFel ? h("a", { href: `/kurser/${kurs.id}/las/${forstaFel.svar.dokId}?sida=${forstaFel.svar.sida}`, class: "sf-btn sf-btn--accent" }, `Läs sida ${forstaFel.svar.sida}`)
+          forstaFel ? h("a", { href: `/kurser/${kurs.id}/visa/${forstaFel.svar.dokId}?sida=${forstaFel.svar.sida}`, class: "sf-btn sf-btn--accent" }, `Läs sida ${forstaFel.svar.sida}`)
             : h("button", { type: "button", class: "sf-btn sf-btn--accent", onclick: ny }, "Nytt quiz"),
           h("button", { type: "button", class: "sf-btn sf-btn--ljus", onclick: () => { resultat.length = 0; nr = 0; fraga(); } }, "Gör quizet igen")))));
     innehall.querySelector("#res-rubrik").focus();

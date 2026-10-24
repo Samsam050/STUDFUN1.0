@@ -8,7 +8,6 @@ import kurser from "./sidor/kurser.js";
 import kurs from "./sidor/kurs.js";
 import laddaUpp from "./sidor/ladda-upp.js";
 import visare from "./sidor/visare.js";
-import laslage from "./sidor/laslage.js";
 import fraga from "./sidor/fraga.js";
 import { quiz, flashcards, repetera } from "./sidor/ova.js";
 import { senasteKurs } from "./sidor/fraga.js";
@@ -31,7 +30,6 @@ const SIDOR = [
   { re: /^\/kurser\/(?<kursId>\d+)$/, sida: kurs, titel: "Kurs", meny: "kurser" },
   { re: /^\/kurser\/(?<kursId>\d+)\/ladda-upp$/, sida: laddaUpp, titel: "Nytt material", meny: "kurser" },
   { re: /^\/kurser\/(?<kursId>\d+)\/visa\/(?<filId>\d+)$/, sida: visare, titel: "Visaren", utanSkal: true },
-  { re: /^\/kurser\/(?<kursId>\d+)\/las\/(?<filId>\d+)$/, sida: laslage, titel: "Läsläget", meny: "kurser" },
   { re: /^\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
   { re: /^\/kurser\/(?<kursId>\d+)\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
   { re: /^\/ova$/, sida: quiz, titel: "Öva", meny: "ova" },
@@ -73,11 +71,10 @@ export async function api(metod, adress, data) {
   return json;
 }
 
-/* Typsnitt och textstorlek gäller i hela tjänsten */
+/* Typsnittet gäller i hela tjänsten */
 export function tillampa(inst) {
   const rot = document.documentElement;
   rot.dataset.typsnitt = inst.typsnitt;
-  rot.style.setProperty("--sf-fs-las", inst.textstorlek + "px");
 }
 
 export function navigera(adress, { ersatt = false } = {}) {

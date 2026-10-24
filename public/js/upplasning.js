@@ -53,7 +53,7 @@ function hamtaLjud(nyckel, adress, data) {
 
 /* Spelar ljudet. vidTid(andel) anropas medan ljudet spelas, med hur stor del som är uppläst.
    Löftet blir klart när ljudet är slut eller stoppas, och misslyckas om webbläsaren inte spelar det.
-   Ett nekat ljud får aldrig räknas som uppläst, då skulle läsläget hoppa vidare genom hela texten. */
+   Ett nekat ljud får aldrig räknas som uppläst, då skulle uppläsningen hoppa vidare genom hela texten. */
 export function spela(url, tempo, vidTid) {
   stoppa();
   return new Promise((ok, fel) => {

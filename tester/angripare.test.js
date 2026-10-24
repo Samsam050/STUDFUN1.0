@@ -33,7 +33,7 @@ after(() => { s.stang(); oa.stang(); });
 
 test("koden har alla adresser vi väntar oss", () => {
   const adresser = allaAdresser();
-  assert.ok(adresser.length >= 32, `hittade bara ${adresser.length}`);
+  assert.ok(adresser.length >= 31, `hittade bara ${adresser.length}`);
   for (const a of ["GET /api/dokument/:id/fil", "POST /api/kurser/:kursId/fraga", "DELETE /api/konto", "GET /api/kurser/:kursId/repetera-quiz"]) {
     assert.ok(adresser.some(x => `${x.metod} ${x.monster}` === a), a);
   }

@@ -184,7 +184,7 @@ export default async function visa(main, { kursId }) {
           h("p", { class: "sf-medd-rubrik sf-gron-text" }, "Klart! Filen är redo."),
           h("p", {}, `${titel}, ${sidorText(antalSidor)}, finns nu i ${kursNu.namn}.`),
           h("div", { class: "sf-knapprad" },
-            h("a", { href: `/kurser/${kursNu.id}/las/${docId}?sida=1`, class: "sf-btn sf-btn--primar" }, "Börja läsa"),
+            h("a", { href: `/kurser/${kursNu.id}/visa/${docId}?sida=1`, class: "sf-btn sf-btn--primar" }, "Börja läsa"),
             h("a", { href: `/kurser/${kursNu.id}`, class: "sf-btn sf-btn--sekundar" }, `Till ${kursNu.namn}`)))));
     }
 

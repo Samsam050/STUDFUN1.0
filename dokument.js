@@ -103,16 +103,6 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
 
   rutt("GET", "/api/dokument/:id", ctx => svar(dokument(ctx.user.id, ctx.params.id)));
 
-  /* Texten sida för sida, till läsläget. Sidor utan text blir tomma. */
-  rutt("GET", "/api/dokument/:id/sidor", ctx => {
-    const d = dokument(ctx.user.id, ctx.params.id);
-    const sidor = Array.from({ length: d.sidor }, () => []);
-    for (const b of db.prepare("SELECT sida, text FROM chunks WHERE document_id = ? AND user_id = ? ORDER BY id").all(d.id, ctx.user.id)) {
-      if (sidor[b.sida - 1]) sidor[b.sida - 1].push(b.text);
-    }
-    return { sidor: sidor.map(t => t.join(" ")) };
-  });
-
   /* Var studenten slutade läsa, så att filen öppnas där nästa gång */
   rutt("PUT", "/api/dokument/:id/position", ctx => {
     const d = dokument(ctx.user.id, ctx.params.id);

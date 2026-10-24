@@ -3,7 +3,6 @@ import { h, ikon, meddelande, dialog } from "../dom.js";
 import { api, app, navigera, tillampa } from "../app.js";
 import * as ljud from "../upplasning.js";
 
-const STORLEKAR = [["Mellan", 20], ["Stor", 22], ["Större", 26], ["Störst", 30]];
 const ROSTER = [["marin", "Röst 1, ljus och tydlig"], ["cedar", "Röst 2, mörk och lugn"], ["shimmer", "Röst 3, mjuk"]];
 const TEMPON = [["langsamt", "Långsamt"], ["normalt", "Normalt"], ["snabbt", "Snabbt"]];
 const PROVTEXT = "Ett anbud gäller bara under en viss tid. Om anbudet saknar svarsfrist ska mottagaren svara inom skälig tid.";
@@ -27,8 +26,6 @@ export default function (main) {
     }
   }
 
-  const storlekKnappar = STORLEKAR.map(([namn, px]) =>
-    h("button", { type: "button", onclick: () => spara({ textstorlek: px }) }, `${namn} · ${px} px`));
   const typsnittVal = [["lexend", "Lexend", "Bred och luftig. Standard."], ["atkinson", "Atkinson Hyperlegible", "Tydliga bokstäver som är lätta att skilja åt."]]
     .map(([varde, namn, text]) => {
       const radio = h("input", { type: "radio", name: "typsnitt", value: varde, class: "sf-osynlig-radio", onchange: () => spara({ typsnitt: varde }) });
@@ -55,7 +52,6 @@ export default function (main) {
 
   function rita() {
     const s = app.jag.installningar;
-    storlekKnappar.forEach((k, i) => k.setAttribute("aria-pressed", String(STORLEKAR[i][1] === s.textstorlek)));
     typsnittVal.forEach(t => { t.radio.checked = t.varde === s.typsnitt; });
     rostVal.value = s.rost;
     tempoKnappar.forEach((k, i) => k.setAttribute("aria-pressed", String(TEMPON[i][0] === s.tempo)));
@@ -95,14 +91,11 @@ export default function (main) {
     status,
     h("section", { class: "sf-sektion", "aria-labelledby": "ins-las" },
       h("h2", { id: "ins-las" }, "Läsning"),
-      h("div", { class: "sf-falt-grupp" },
-        h("span", { id: "ins-storlek", class: "sf-etikett-stor" }, "Textstorlek i läsläget"),
-        h("div", { class: "sf-seg", role: "group", "aria-labelledby": "ins-storlek" }, storlekKnappar)),
       h("fieldset", { class: "sf-falt-grupp sf-fieldset" },
         h("legend", { class: "sf-etikett-stor" }, "Typsnitt"),
         h("div", { class: "sf-typkort-lista" }, typsnittVal.map(t => t.el))),
       h("div", { class: "sf-prov" },
-        h("span", { class: "sf-etikett" }, "Så här ser texten ut i läsläget"), prov)),
+        h("span", { class: "sf-etikett" }, "Så här ser texten ut"), prov)),
     h("section", { class: "sf-sektion", "aria-labelledby": "ins-upp" },
       h("h2", { id: "ins-upp" }, "Uppläsning"),
       h("div", { class: "sf-rad sf-rad--slut" },
