@@ -128,7 +128,8 @@ delar.konto = konto;
 require("./kurser")(delar);
 require("./dokument")(delar);
 require("./upplasning")(delar);
-require("./tudi")(delar);
+delar.tudi = require("./tudi")(delar);
+require("./ova")(delar);
 
 async function api(req, res, url) {
   /* Anrop som ändrar något godtas bara från StudFuns egen adress */

@@ -99,6 +99,11 @@ const MIGRATIONER = [
      antal INTEGER NOT NULL DEFAULT 0,
      PRIMARY KEY (user_id, dag, typ)
    );`,
+  /* Steg 6: svarsalternativ och förklaring till quizfrågor och flashcards */
+  `ALTER TABLE cards ADD COLUMN alternativ TEXT NOT NULL DEFAULT '[]';
+   ALTER TABLE cards ADD COLUMN forklaring TEXT NOT NULL DEFAULT '';
+   ALTER TABLE cards ADD COLUMN skapad INTEGER NOT NULL DEFAULT 0;
+   CREATE INDEX attempts_user ON attempts(user_id);`,
 ];
 
 function oppna(dataDir) {

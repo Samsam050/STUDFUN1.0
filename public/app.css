@@ -467,6 +467,51 @@ select.sf-falt { padding-right: 44px; }
 .sf-visa-tudi { position: fixed; left: var(--sf-s-16); right: var(--sf-s-16); bottom: calc(var(--sf-s-16) + env(safe-area-inset-bottom)); z-index: 20; box-shadow: var(--sf-skugga-2); }
 .sf-visare-yta { padding-bottom: 96px; }
 
+/* Öva: quiz och flashcards */
+.sf-btn--ljus { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .6); }
+.sf-btn--ljus:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.sf-ova-rubrik { font-size: var(--sf-fs-1); overflow-wrap: anywhere; }
+.sf-ova-laddar { flex-direction: row; align-items: center; color: var(--sf-text-2); }
+.sf-quiz { gap: var(--sf-s-24); }
+.sf-quiz h2 { font-size: var(--sf-fs-2); line-height: 1.35; color: var(--sf-text); max-width: 46ch; }
+.sf-alternativ { gap: var(--sf-s-12); }
+.sf-alt {
+  display: flex; align-items: center; gap: var(--sf-s-16); min-height: 64px; padding: var(--sf-s-12) var(--sf-s-18);
+  border-radius: var(--sf-r-16); background: var(--sf-yta); border: 2px solid var(--sf-kant); font-size: 18px; line-height: 1.5; cursor: pointer;
+}
+.sf-alt:hover { border-color: var(--sf-kant-stark); }
+.sf-alt:has(input:checked:enabled) { border-color: var(--sf-gron); background: var(--sf-gron-50); } /* efter rättningen tar Rätt svar och Ditt svar över */
+.sf-alt:has(input:focus-visible) { outline: 3px solid var(--sf-fokus); outline-offset: 3px; }
+.sf-alt input { width: 24px; height: 24px; margin: 0; flex: none; accent-color: var(--sf-gron); }
+.sf-alt-etikett { font-size: var(--sf-fs-etikett); font-weight: 600; }
+.sf-alt--ratt { border-color: var(--sf-gron); background: var(--sf-gron-100); }
+.sf-alt--ratt .sf-alt-etikett { color: var(--sf-gron); }
+.sf-alt--fel { border-color: var(--sf-orange); background: var(--sf-orange-100); }
+.sf-alt--fel .sf-alt-etikett { color: var(--sf-orange-text); }
+.sf-quiz-svar { box-shadow: none; }
+.sf-quiz-svar--ratt { background: var(--sf-gron-100); border-color: var(--sf-klar-kant); }
+.sf-quiz-svar--ratt .sf-medd-rubrik { color: var(--sf-gron); }
+.sf-quiz-svar--fel { background: var(--sf-orange-100); border-color: var(--sf-orange-200); }
+.sf-quiz-svar .sf-kalla { align-self: flex-start; }
+.sf-resultat { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--sf-s-24); }
+.sf-resultat h2 { font-size: var(--sf-fs-2); color: var(--sf-gron); }
+.sf-nasta-steg { display: flex; flex-direction: column; gap: var(--sf-s-16); padding: var(--sf-s-28) var(--sf-s-24); border-radius: var(--sf-r-28); background: var(--sf-gron); color: #fff; }
+.sf-nasta-steg p { font-size: var(--sf-fs-4); line-height: 1.4; font-weight: 600; }
+.sf-nasta-etikett {
+  align-self: flex-start; padding: var(--sf-s-6) var(--sf-s-14); border-radius: var(--sf-r-rund);
+  background: var(--sf-orange); color: var(--sf-text-pa-orange); font-size: var(--sf-fs-etikett); font-weight: 600;
+}
+.sf-kort {
+  width: 100%; min-height: 300px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--sf-s-24);
+  padding: var(--sf-s-28) var(--sf-s-24); border-radius: var(--sf-r-28); border: 2px solid var(--sf-kant); background: var(--sf-yta);
+  box-shadow: 0 10px 30px rgba(6, 41, 22, .08); text-align: left; cursor: pointer; font-family: var(--sf-font); color: var(--sf-text);
+}
+.sf-kort:hover { border-color: var(--sf-kant-stark); }
+.sf-kort--bak { background: var(--sf-gron-50); border-color: var(--sf-klar-kant); }
+.sf-kort-begrepp { font-size: var(--sf-fs-xl); line-height: 1.2; font-weight: 700; color: var(--sf-gron); overflow-wrap: anywhere; }
+.sf-kort-begrepp--liten { font-size: var(--sf-fs-3); }
+.sf-kort-text { font-size: var(--sf-fs-las); line-height: 1.6; max-width: 46ch; }
+
 @media (min-width: 1024px) {
   .sf-skal { flex-direction: row; }
   .sf-topp, .sf-flikrad { display: none; }
@@ -493,6 +538,8 @@ select.sf-falt { padding-right: 44px; }
   .sf-tudi-panel { position: static; height: auto; flex: 0 0 400px; border-top: none; border-left: 1px solid var(--sf-kant); border-radius: 0; box-shadow: none; padding: var(--sf-s-20); }
   .sf-visa-tudi { position: static; box-shadow: none; min-height: var(--sf-klickyta); padding: 0 var(--sf-s-14); font-size: var(--sf-fs-liten); }
   .sf-visare-yta { padding-bottom: var(--sf-s-24); }
+  .sf-nasta-steg { padding: var(--sf-s-40) 44px; }
+  .sf-kort { min-height: 340px; padding: 36px var(--sf-s-40); }
 
   .sf-inlogg { flex-direction: row; }
   .sf-inlogg-sida {

@@ -69,7 +69,7 @@ En student kan ha högst 20 filer.
 |---|---|
 | `user_id` | Vems användning det är. |
 | `dag` | Dagen, som byts klockan 06.00 svensk tid. Rader äldre än en vecka raderas. |
-| `typ` | Vad som räknas: `upplasning` (tecken som lästs upp och inte redan fanns sparade), `fragor` (frågor till Tudi, en fråga med bild räknas som två) och `tal` (tal till text). |
+| `typ` | Vad som räknas: `upplasning` (tecken som lästs upp och inte redan fanns sparade), `fragor` (frågor till Tudi, en fråga med bild räknas som två), `tal` (tal till text), `ova` (nya omgångar quiz eller flashcards) och `rattning` (korta svar som modellen fick rätta). |
 | `antal` | Hur mycket som använts. Jämförs med dagens tak. |
 
 ## Sparad uppläsning (inte i databasen)
@@ -88,15 +88,29 @@ Samtalet med Tudi i en kurs. Förklaringar av enskilda ord i läsläget sparas i
 
 Bilden av sidan som skickas till Tudi från visaren sparas inte, och inte heller ljudet från tal till text.
 
-## Tabeller som används från steg 6 och framåt
-De skapas redan nu, så att alla rader har `user_id` från början.
+## cards
+Quizfrågor och flashcards. Görs av modellen från bitar i kursen och raderas med filen de bygger på.
 
-| Tabell | Fält |
+| Fält | Varför |
 |---|---|
-| `cards` | `course_id`, `document_id`, `typ`, `fraga`, `svar`, `kalla_sida` |
-| `attempts` | `card_id`, `ratt`, `tid` |
+| `user_id`, `course_id` | Vems frågan är och i vilken kurs. |
+| `document_id` | Filen frågan bygger på. Raderas filen, raderas frågan och svaren på den. |
+| `typ` | `flerval`, `kort` (kort svar) eller `flashcard`. |
+| `fraga` | Frågan, eller begreppet på flashcardets framsida. |
+| `svar` | Facit, eller förklaringen på baksidan. Facit skickas aldrig med quizfrågorna, bara efter att studenten svarat. |
+| `alternativ` | De tre svarsalternativen för flerval som JSON, i blandad ordning. Tom för andra typer. |
+| `forklaring` | En eller två meningar om varför svaret är rätt. |
+| `kalla_sida` | Sidan frågan bygger på. Visas efter svaret, och nästa steg pekar dit. |
+| `skapad` | När frågan gjordes. |
 
-Varje fält beskrivs här när steget som använder det är byggt.
+## attempts
+Varje svar studenten ger. Det är resultaten som sparas, och som nästa steg ska bygga på.
+
+| Fält | Varför |
+|---|---|
+| `user_id`, `card_id` | Vem som svarade på vilken fråga. |
+| `ratt` | 1 för rätt eller Kunde, 0 för fel eller Kunde inte. Servern rättar alltid, aldrig webbläsaren. |
+| `tid` | När studenten svarade. |
 
 ## Ändringar i schemat
 Nya ändringar läggs till sist i listan `MIGRATIONER` i `db.js`. En gammal ändring skrivs aldrig om. `PRAGMA user_version` håller reda på vilka som redan har körts.

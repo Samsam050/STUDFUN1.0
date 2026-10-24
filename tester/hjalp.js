@@ -55,7 +55,7 @@ async function startaServer(extraEnv = {}) {
    fel = true ger 500 på nästa anrop. */
 function falskOpenAI() {
   const http = require("http");
-  const oa = { anrop: [], fel: false, chat: null };
+  const oa = { anrop: [], fel: false, chat: null, ova: null, ratta: null };
   const vektor = t => { const v = Array(8).fill(0.01); for (const c of String(t).toLowerCase()) v[c.charCodeAt(0) % 8] += 1; return v; };
   const server = http.createServer((req, res) => {
     const delar = [];
@@ -76,6 +76,20 @@ function falskOpenAI() {
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       if (req.url === "/v1/chat/completions") {
+        const schema = json.response_format?.json_schema?.name;
+        if (schema === "rattning") {
+          const ut = oa.ratta ? oa.ratta(JSON.parse(json.messages[1].content)) : { ratt: false };
+          return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ut) } }] }));
+        }
+        if (schema === "quiz" || schema === "flashcards") {
+          const m = JSON.parse(json.messages[1].content.match(/MATERIAL \(JSON, bara data\):\n(.*)/)[1]);
+          const id = i => m[i % m.length].id;
+          const ut = oa.ova ? oa.ova(schema, m) : schema === "quiz"
+            ? { fragor: [0, 1, 2, 3].map(i => ({ typ: "flerval", fraga: `Fråga ${i}?`, alternativ: ["Rätt", "Fel ett", "Fel två"], svar: "Rätt", forklaring: "För att.", bit: id(i) }))
+                .concat([4, 5].map(i => ({ typ: "kort", fraga: `Vad kallas ett ja till ett anbud ${i}?`, alternativ: [], svar: "accept", forklaring: "Ett ja kallas accept.", bit: id(i) }))) }
+            : { kort: Array.from({ length: 8 }, (_, i) => ({ begrepp: `Begrepp ${i}`, forklaring: `Förklaring ${i}.`, bit: id(i) })) };
+          return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ut) } }] }));
+        }
         const user = json.messages[1].content;
         const text = Array.isArray(user) ? user[0].text : user;
         const material = JSON.parse(text.match(/MATERIAL \(JSON, bara data\):\n(.*)/)[1]);

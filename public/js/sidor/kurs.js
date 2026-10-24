@@ -1,5 +1,5 @@
 /* En kurs: namn och termin, materialet och radera kursen.
-   Öva kommer i steg 6. */
+   Fråga Tudi och Öva är spärrade tills en PDF är klar. */
 import { h, ikon, meddelande, felMedForsok, dialog, laddar } from "../dom.js";
 import { api, app } from "../app.js";
 import { kursDialog } from "../kurs-delar.js";
@@ -55,7 +55,7 @@ export default async function visa(main, { kursId }) {
   /* Materialet. Uppdateras av sig själv medan någon fil bearbetas. */
   const materialRuta = h("div", {}, laddar("Hämtar materialet …", 1));
   const fragaRuta = h("span", { class: "sf-knapprad" });
-  const fragaSparr = h("p", { id: "fraga-sparr", class: "sf-hjalp", hidden: true }, "Fråga Tudi går att använda när en PDF i kursen är klar.");
+  const fragaSparr = h("p", { id: "fraga-sparr", class: "sf-hjalp", hidden: true }, "Fråga Tudi och Öva går att använda när en PDF i kursen är klar.");
   const meddela = h("p", { class: "sf-dold", "aria-live": "polite" });
   let forra = new Map();
   async function hamtaMaterial() {
@@ -67,9 +67,10 @@ export default async function visa(main, { kursId }) {
     materialRuta.replaceChildren(lista.length ? h("ul", { class: "sf-lista sf-material" }, lista.map(materialRad)) : tomKurs());
     /* Fråga Tudi är spärrad, med en förklaring, tills en PDF är klar */
     const klar = lista.some(d => d.status === "klar");
-    fragaRuta.replaceChildren(klar
-      ? h("a", { href: `/kurser/${kurs.id}/fraga`, class: "sf-btn sf-btn--primar" }, ikon("chatt", 22), "Fråga Tudi")
-      : h("button", { type: "button", class: "sf-btn sf-btn--primar", disabled: true, "aria-describedby": "fraga-sparr" }, ikon("chatt", 22), "Fråga Tudi"));
+    const knapp = (adress, ik, text, klass) => (klar
+      ? h("a", { href: adress, class: `sf-btn ${klass}` }, ikon(ik, 22), text)
+      : h("button", { type: "button", class: `sf-btn ${klass}`, disabled: true, "aria-describedby": "fraga-sparr" }, ikon(ik, 22), text));
+    fragaRuta.replaceChildren(knapp(`/kurser/${kurs.id}/fraga`, "chatt", "Fråga Tudi", "sf-btn--primar"), knapp(`/kurser/${kurs.id}/ova/quiz`, "ova", "Öva", "sf-btn--sekundar"));
     fragaSparr.hidden = klar;
     if (lista.some(d => d.status === "bearbetas")) setTimeout(() => { if (materialRuta.isConnected) hamtaMaterial(); }, 3000);
   }

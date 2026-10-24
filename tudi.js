@@ -221,4 +221,6 @@ module.exports = function ({ db, CONFIG, Fel, rutt }) {
     const j = await r.json();
     return { text: String(j.text || "").trim().slice(0, MAX_FRAGA) };
   }, { ra: "audio/", maxBody: 5 * 1024 * 1024 });
+
+  return { openai };
 };

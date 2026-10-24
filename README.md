@@ -36,6 +36,7 @@ Testerna startar en egen server med en tom datamapp och provar också det som sk
 | `dokument.js` | PDF:er: uppladdning, bitar med sidnummer, vektorer, hämta och radera. |
 | `upplasning.js` | Uppläsning med sparat ljud och dagstak. |
 | `tudi.js` | Tudi: sökning i kursen, svar med källor, sidan och bilden från visaren, tal till text och dagstak. |
+| `ova.js` | Quiz och flashcards: nya omgångar från materialet, rättning och sparade svar. |
 | `public/` | Appen. `tokens.css` har designens variabler, `app.css` komponenterna och `js/` sidorna. |
 | `public/vendor/pdfjs-6.4.299/` | pdf.js från npm (`pdfjs-dist`), utan delen som kör JavaScript i PDF:er. Byt hela mappen när en ny version kommer. |
 | `tester/` | Testerna, ett test per steg. |

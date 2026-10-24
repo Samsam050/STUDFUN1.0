@@ -10,6 +10,7 @@ import laddaUpp from "./sidor/ladda-upp.js";
 import visare from "./sidor/visare.js";
 import laslage from "./sidor/laslage.js";
 import fraga from "./sidor/fraga.js";
+import { quiz, flashcards } from "./sidor/ova.js";
 
 /* kvitto: ett meddelande som nästa sida visar en gång, till exempel "Kursen är skapad" */
 export const app = { jag: null, kvitto: null };
@@ -27,6 +28,9 @@ const SIDOR = [
   { re: /^\/kurser\/(?<kursId>\d+)\/las\/(?<filId>\d+)$/, sida: laslage, titel: "Läsläget", meny: "kurser" },
   { re: /^\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
   { re: /^\/kurser\/(?<kursId>\d+)\/fraga$/, sida: fraga, titel: "Fråga Tudi", meny: "fraga" },
+  { re: /^\/ova$/, sida: quiz, titel: "Öva", meny: "ova" },
+  { re: /^\/kurser\/(?<kursId>\d+)\/ova\/quiz$/, sida: quiz, titel: "Quiz", meny: "ova" },
+  { re: /^\/kurser\/(?<kursId>\d+)\/ova\/flashcards$/, sida: flashcards, titel: "Flashcards", meny: "ova" },
   { re: /^\/installningar$/, sida: installningar, titel: "Inställningar", meny: "installningar" },
 ];
 
@@ -36,6 +40,7 @@ const MENY = [
   /* ?meny: har studenten bara en kurs öppnas den direkt */
   { id: "kurser", text: "Mina kurser", kort: "Kurser", ikon: "kurser", adress: "/kurser?meny" },
   { id: "fraga", text: "Fråga Tudi", ikon: "chatt", adress: "/fraga" },
+  { id: "ova", text: "Öva", ikon: "ova", adress: "/ova" },
   { id: "installningar", text: "Inställningar", ikon: "installningar", adress: "/installningar", baraDator: true },
 ];
 
