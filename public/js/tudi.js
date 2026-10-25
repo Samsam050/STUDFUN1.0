@@ -1,4 +1,5 @@
 /* Samtalet med Tudi. Används både på sidan Fråga Tudi och i panelen bredvid sidan i visaren.
+   Allt hamnar i samtalet i tidsordning, också förklaringar av sidor från knappen Förklara den här sidan.
    Tudis svar visas alltid som text, aldrig som HTML. */
 import { h, ikon } from "./dom.js";
 import { api, app } from "./app.js";
@@ -10,14 +11,15 @@ const FOLJD = [["enklare", "Enklare"], ["steg", "Steg för steg"], ["exempel", "
 const EXEMPEL = ["Vad är det viktigaste i materialet?", "Förklara ett svårt begrepp i materialet.", "Sammanfatta materialet i fem korta punkter."];
 
 /*
-  kursId      kursen frågorna gäller
-  etikett     texten ovanför frågefältet
-  kontext()   (valfri) extra fält till frågan, till exempel sidan studenten är på
-  oppnaKalla  anropas med { dokId, titel, sida } när studenten trycker på en sidhänvisning
-  tomText     visas när samtalet är tomt
-  serSidan    Tudi vet vilken sida studenten är på, som i visaren
+  kursId       kursen frågorna gäller
+  etikett      texten ovanför frågefältet. doljEtikett: bara för skärmläsare
+  kontext(d)   (valfri) extra fält till frågan d, till exempel sidan studenten är på och en bild av den
+  oppnaKalla   anropas med { dokId, titel, sida } när studenten trycker på en sidhänvisning
+  tomText      visas när samtalet är tomt
+  serSidan     Tudi vet vilken sida studenten är på, som i visaren
+  bildAv(d, n) (valfri) en bild av sida n i dokument d, för Titta på bilden också. Utan den visas inte knappen.
 */
-export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare = "Till exempel: Hur länge gäller ett anbud?", kontext, oppnaKalla, tomText, serSidan = false }) {
+export function samtal({ kursId, etikett = "Din fråga till Tudi", doljEtikett = false, platshallare = "Till exempel: Hur länge gäller ett anbud?", kontext, oppnaKalla, tomText, serSidan = false, bildAv }) {
   const lista = h("ol", { class: "sf-samtal", "aria-label": "Samtal med Tudi" });
   const meddela = h("p", { class: "sf-dold", "aria-live": "polite" });
   const falt = h("textarea", { id: `fraga-${kursId}`, class: "sf-falt sf-fragefalt", rows: "2", placeholder: platshallare, maxlength: "1000" });
@@ -25,7 +27,7 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare 
   const mikKnapp = h("button", { type: "button", class: "sf-btn sf-btn--sekundar", "aria-pressed": "false" });
   const lyssnar = h("p", { class: "sf-lyssnar", role: "status", hidden: true });
   const form = h("form", { class: "sf-fragaform", novalidate: true },
-    h("label", { for: falt.id, class: "sf-etikett-stor" }, etikett), lyssnar,
+    h("label", { for: falt.id, class: doljEtikett ? "sf-dold" : "sf-etikett-stor" }, etikett), lyssnar,
     h("div", { class: "sf-rad sf-rad--slut" }, falt, h("div", { class: "sf-knapprad" }, mikKnapp, skickaKnapp)));
   let upptagen = false, spelas = null;
 
@@ -70,7 +72,8 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare 
       igen && h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: igen }, "Försök igen")));
   }
 
-  function lasUppKnapp(text) {
+  /* dokId: förklaringen av en sida är sparad, så ljudet sparas med filen */
+  function lasUppKnapp(text, dokId) {
     const knapp = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-pressed": "false" });
     const rita = pa => { knapp.replaceChildren(ikon(pa ? "paus" : "hogtalare", 20), pa ? "Pausa" : "Läs upp svaret"); knapp.setAttribute("aria-pressed", String(pa)); };
     rita(false);
@@ -79,7 +82,7 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare 
       spelas?.dispatchEvent(new Event("stoppad"));
       spelas = knapp;
       rita(true);
-      try { await ljud.spela(await ljud.hamtaSvar(talbar(text)), ljud.TEMPO[app.jag.installningar.tempo] || 1); }
+      try { await ljud.spela(await ljud.hamtaSvar(talbar(text), dokId), ljud.TEMPO[app.jag.installningar.tempo] || 1); }
       catch (e) { visaFel(e.message); }
       if (spelas === knapp) spelas = null;
       rita(false);
@@ -96,26 +99,39 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare 
     /* Svar från före sidhänvisningarna i texten har sina källor i en egen rad */
     const iText = text.some(el => el.querySelector(".sf-kalla"));
     const flera = new Set(m.kallor.map(k => k.dokId)).size > 1;
-    return h("li", { class: "sf-medd-tudi" },
+    const sida = m.meta?.typ === "sida";
+    const el = h("li", { class: "sf-medd-tudi" },
       h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }),
       h("div", { class: "sf-bubbla sf-bubbla--tudi" },
-        h("span", { class: "sf-bubbla-namn" }, "Tudi"),
+        h("span", { class: "sf-bubbla-namn" }, sida ? `Tudi förklarar sida ${m.meta.sida}` : "Tudi"),
         text,
         !iText && m.kallor.length > 0 && h("div", { class: "sf-rad" }, h("span", { class: "sf-hjalp" }, "Källor"),
           m.kallor.map(k => h("button", { type: "button", class: "sf-kalla", "aria-label": `Öppna ${k.titel}, sida ${k.sida}`, onclick: () => oppnaKalla(k) },
             ikon("dokument", 18), flera ? `${k.titel}, sida ${k.sida}` : `Sida ${k.sida}`))),
         !m.kallor.length && /inte i materialet|inget färdigt material/i.test(m.text) &&
           h("a", { href: `/kurser/${kursId}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten sf-btn--sjalv" }, ikon("laddaUpp", 20), "Ladda upp material"),
-        h("div", { class: "sf-bubbla-fot" }, lasUppKnapp(m.text))));
+        h("div", { class: "sf-bubbla-fot" }, lasUppKnapp(m.text, sida ? m.meta.dokId : undefined))));
+    el.meta = m.meta || {};
+    return el;
   }
 
-  /* Knapparna för att få svaret förklarat på ett annat sätt, bara under senaste svaret som har källor */
+  /* Knapparna för att få svaret förklarat på ett annat sätt, bara under senaste svaret.
+     Under en förklaring av en sida utan bild finns också Titta på bilden också. */
   function foljdKnappar() {
     lista.querySelector(".sf-foljd")?.remove();
     const sista = [...lista.querySelectorAll(".sf-medd-tudi")].pop();
-    if (!sista || sista !== lista.lastElementChild || !sista.querySelector(".sf-kalla")) return;
+    if (!sista || sista !== lista.lastElementChild || !sista.meta) return;
+    const meta = sista.meta;
+    const visa = meta.typ === "sida" || (meta.typ === "chatt" && meta.val !== "ovrigt") || (!meta.typ && sista.querySelector(".sf-kalla"));
+    if (!visa) return;
+    const titta = meta.typ === "sida" && !meta.bild && bildAv && h("button", { type: "button", class: "sf-btn sf-btn--chip", onclick: async () => {
+      let bild;
+      try { bild = await bildAv(meta.dokId, meta.sida); } catch { bild = undefined; }
+      if (!bild) return visaFel("Bilden av sidan gick inte att göra. Försök igen.");
+      skicka({ forklara: true, tittaPaBilden: true, sida: { dokId: meta.dokId, nr: meta.sida }, bild }, `Titta på bilden av sida ${meta.sida}`, false, true);
+    } }, "Titta på bilden också");
     sista.querySelector(".sf-bubbla").append(h("div", { class: "sf-knapprad sf-foljd", role: "group", "aria-label": "Be Tudi förklara på ett annat sätt" },
-      FOLJD.map(([v, t]) => h("button", { type: "button", class: "sf-btn sf-btn--chip", onclick: () => skicka({ foljd: v }, t, false) }, t))));
+      FOLJD.map(([v, t]) => h("button", { type: "button", class: "sf-btn sf-btn--chip", onclick: () => skicka({ foljd: v }, t, false) }, t)), titta));
   }
 
   function tomt() {
@@ -126,7 +142,8 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare 
       h("div", { class: "sf-knapprad" }, EXEMPEL.map(t => h("button", { type: "button", class: "sf-btn sf-btn--chip", onclick: () => skicka({ fraga: t }, t, false) }, t)))));
   }
 
-  async function skicka(data, visas, franFalt) {
+  /* utanKontext: data har redan allt, till exempel sidan och bilden för Titta på bilden också */
+  async function skicka(data, visas, franFalt, utanKontext = false) {
     if (upptagen) return;
     upptagen = true;
     skickaKnapp.disabled = true;
@@ -136,19 +153,22 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", platshallare 
     const du = bubbla({ roll: "student", text: visas });
     const tanker = h("li", { class: "sf-medd-tudi", role: "status" },
       h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }),
-      h("p", { class: "sf-bubbla sf-bubbla--tanker" }, serSidan ? "Tudi läser sidan och letar i ditt material …" : "Tudi letar i ditt material …"));
+      h("p", { class: "sf-bubbla sf-bubbla--tanker" }, data.forklara ? "Tudi läser sidan …" : serSidan ? "Tudi läser sidan och letar i ditt material …" : "Tudi letar i ditt material …"));
     lista.append(du, tanker);
-    tanker.scrollIntoView({ block: "nearest" });
+    /* Allt nytt hamnar sist i samtalet. Det scrollas fram, också när studenten har scrollat upp, till exempel till Förklara den här sidan. */
+    du.scrollIntoView({ block: "start" });
     try {
-      const extra = kontext ? await kontext() : {};
+      const extra = kontext && !utanKontext ? await kontext(data) : {};
       const r = await api("POST", `/api/kurser/${kursId}/fraga`, { ...extra, ...data });
-      tanker.replaceWith(bubbla(r.svar));
+      const svar = bubbla(r.svar);
+      tanker.replaceWith(svar);
       if (franFalt) falt.value = "";
       meddela.textContent = "Tudi har svarat.";
       foljdKnappar();
+      svar.scrollIntoView({ block: "start" });
     } catch (e) {
       du.remove(); tanker.remove();
-      visaFel(e.message, e.status === 429 || e.status === 400 ? null : () => skicka(data, visas, franFalt));
+      visaFel(e.message, e.status === 429 || e.status === 400 ? null : () => skicka(data, visas, franFalt, utanKontext));
       tomt();
     } finally {
       upptagen = false;

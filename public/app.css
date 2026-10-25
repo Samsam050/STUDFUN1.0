@@ -543,8 +543,6 @@ select.sf-falt { padding-right: 44px; }
 .sf-svar-lista { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: var(--sf-s-6); max-width: 62ch; }
 .sf-bubbla--tudi strong { font-weight: 700; }
 .sf-kalla--i-text { display: inline-flex; min-height: 32px; padding: 0 var(--sf-s-8); margin: 0 2px; vertical-align: baseline; }
-.sf-forklaring:empty { display: none; }
-.sf-forklaring .sf-foljd { padding-top: var(--sf-s-6); }
 .sf-borja { counter-reset: steg; }
 .sf-borja .sf-material-rad::before {
   counter-increment: steg; content: counter(steg); flex: none; display: grid; place-items: center; width: 36px; height: 36px;

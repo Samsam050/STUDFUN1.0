@@ -8,7 +8,7 @@
 import { h, ikon } from "../dom.js";
 import { api, app, navigera } from "../app.js";
 import { oppnaPdf, ritaSida, textrutor, sidtext, bildAndel } from "../pdf.js";
-import { svarElement, talbar } from "../svar.js";
+import { svarElement } from "../svar.js";
 import { ordFranText, meningar } from "../delar.js";
 import * as ljud from "../upplasning.js";
 import { samtal } from "../tudi.js";
@@ -18,7 +18,6 @@ const ZOOM = [0.75, 1, 1.25, 1.5, 2];
 /* Regeln för när Förklara den här sidan skickar en bild av sidan */
 const BILD_UNDER_TECKEN = 400;
 const BILD_OVER_ANDEL = 0.3;
-const SATT = [["enklare", "Enklare"], ["steg", "Steg för steg"], ["exempel", "Ge ett exempel"], ["annat", "Förklara på ett annat sätt"]];
 /* Hur länge ett ord tar att säga, ungefär: bokstäverna plus en paus efter skiljetecken.
    shortcut: markeringen räknas fram ur ljudets längd, inte ur talmotorns ordgränser. Byt om OpenAI börjar ge tidsstämplar för uppläst ljud. */
 const vikt = ord => ord.replace(/[^\p{L}\p{N}]/gu, "").length + 2 + (/[.!?:;]["”’)]*$/.test(ord) ? 6 : /,$/.test(ord) ? 3 : 0);
@@ -90,7 +89,6 @@ export default async function visa(main, { kursId, filId }) {
     if (!fortsatt) stoppa();
     if (ny === sida && pdf) return rita();
     sida = ny;
-    rensaForklaring();
     history.replaceState(null, "", `/kurser/${kurs.id}/visa/${dok.id}?sida=${sida}`);
     clearTimeout(sparTimer);
     sparTimer = setTimeout(() => api("PUT", `/api/dokument/${dok.id}/position`, { sida }).catch(() => {}), 1000);
@@ -312,69 +310,25 @@ export default async function visa(main, { kursId, filId }) {
     return tecken < BILD_UNDER_TECKEN || (await bildAndel(pdf, nr)) > BILD_OVER_ANDEL;
   }
 
-  /* Förklara den här sidan. Svaret visas ovanför samtalet och försvinner när studenten byter sida.
-     Knapparna under svaret ber om samma sida på ett annat sätt. */
-  const forklaringRuta = h("div", { class: "sf-forklaring", "aria-live": "polite" });
-  let forklaring = null, forklarar = false, forklaringSpelas = false;
-  function rensaForklaring() {
-    if (forklaringSpelas) ljud.stoppa();
-    forklaring = null;
-    forklaringRuta.replaceChildren();
-  }
-  async function forklaraSida({ satt, tittaPaBilden = false } = {}) {
-    if (forklarar) return;
-    forklarar = true;
-    const nr = sida;
-    forklaringRuta.replaceChildren(h("div", { class: "sf-medd-tudi", role: "status" },
-      h("p", { class: "sf-bubbla sf-bubbla--tanker" }, tittaPaBilden ? "Tudi tittar på bilden av sidan …" : `Tudi läser sida ${nr} …`)));
-    try {
-      const medBild = tittaPaBilden || (satt ? forklaring.bild : await behoverBild(nr).catch(() => false));
-      const bild = medBild ? await sidbild(nr).catch(() => undefined) : undefined;
-      const r = await api("POST", `/api/dokument/${dok.id}/sidor/${nr}/forklara`, { satt, forra: satt ? forklaring.nyckel : undefined, bild });
-      if (nr !== sida) return;
-      forklaring = r;
-      visaForklaring(r);
-    } catch (e) {
-      if (nr !== sida) return;
-      forklaringRuta.replaceChildren(h("div", { class: "sf-medd sf-medd--fel sf-medd--knapp", role: "alert" }, ikon("fel"),
-        h("p", { class: "sf-vaxer" }, e.message),
-        e.status !== 429 && h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: () => forklaraSida({ satt, tittaPaBilden }) }, "Försök igen")));
-    } finally { forklarar = false; }
-  }
-  function visaForklaring(r) {
-    const las = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-pressed": "false" });
-    const ritaLas = pa => { las.replaceChildren(ikon(pa ? "paus" : "hogtalare", 20), pa ? "Pausa" : "Läs upp"); las.setAttribute("aria-pressed", String(pa)); };
-    ritaLas(false);
-    las.addEventListener("click", async () => {
-      if (forklaringSpelas) { ljud.stoppa(); return; }
-      stoppa();
-      forklaringSpelas = true; ritaLas(true);
-      try { await ljud.spela(await ljud.hamtaSvar(talbar(r.text), dok.id), ljud.TEMPO[app.jag.installningar.tempo] || 1); }
-      catch (e) { ljudFel.replaceChildren(h("div", { class: "sf-medd sf-medd--fel", role: "alert" }, ikon("fel"), h("p", {}, e.message))); }
-      forklaringSpelas = false;
-      if (las.isConnected) ritaLas(false);
-    });
-    const satt = SATT.find(([v]) => v === r.satt);
-    forklaringRuta.replaceChildren(h("div", { class: "sf-medd-tudi" },
-      h("div", { class: "sf-bubbla sf-bubbla--tudi" },
-        h("span", { class: "sf-bubbla-namn" }, satt ? `Tudi · sida ${r.sida} · ${satt[1].toLowerCase()}` : `Tudi förklarar sida ${r.sida}`),
-        svarElement(r.text, r.kallor, k => ga(k.sida)),
-        h("div", { class: "sf-knapprad sf-foljd", role: "group", "aria-label": "Be Tudi förklara sidan på ett annat sätt" },
-          SATT.map(([v, t]) => h("button", { type: "button", class: "sf-btn sf-btn--chip", onclick: () => forklaraSida({ satt: v }) }, t)),
-          !r.bild && h("button", { type: "button", class: "sf-btn sf-btn--chip", onclick: () => forklaraSida({ tittaPaBilden: true }) }, "Titta på bilden också")),
-        h("div", { class: "sf-bubbla-fot" }, las))));
-  }
   const tudi = samtal({
     kursId: kurs.id,
     serSidan: true,
-    etikett: "Din fråga om sidan",
-    platshallare: "Till exempel: Vad betyder det här?",
-    tomText: "Fråga något om sidan du tittar på. Tudi vet vilken sida du är på och svarar utifrån ditt material. Vill du att Tudi tittar på en bild, tryck Förklara den här sidan.",
-    kontext: async () => ({ sida: { dokId: dok.id, nr: sida } }),
+    etikett: "Fråga Tudi",
+    doljEtikett: true,
+    platshallare: "Fråga Tudi om sidan, hela dokumentet eller kursen",
+    tomText: "Fråga något om sidan du tittar på, om hela dokumentet eller om kursen. Tudi vet vilken sida du är på.",
+    /* Sidan följer med varje fråga. En bild följer med bara när bildregeln säger det, och används bara om frågan gäller sidan. */
+    kontext: async data => {
+      const nr = sida;
+      const bild = !data.foljd && await behoverBild(nr).catch(() => false) ? await sidbild(nr).catch(() => undefined) : undefined;
+      return { sida: { dokId: dok.id, nr }, bild };
+    },
+    bildAv: (dokId, nr) => (dokId === dok.id ? sidbild(nr) : Promise.resolve(undefined)),
     oppnaKalla: k => (k.dokId === dok.id ? ga(k.sida) : navigera(`/kurser/${kurs.id}/visa/${k.dokId}?sida=${k.sida}`)),
   });
   const duArPa = h("p", { class: "sf-du-ar-pa", "aria-live": "polite" });
-  const forklara = h("button", { type: "button", class: "sf-btn sf-btn--accent", onclick: () => forklaraSida() }, "Förklara den här sidan");
+  /* Förklaringen hamnar sist i samtalet, som allt annat */
+  const forklara = h("button", { type: "button", class: "sf-btn sf-btn--accent", onclick: () => tudi.skicka({ forklara: true }, `Förklara sida ${sida}`, false) }, "Förklara den här sidan");
   const fallIhop = h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-expanded": "true", "aria-controls": "tudi-panel" }, "Fäll ihop");
   const visaTudi = h("button", { type: "button", class: "sf-btn sf-btn--primar sf-visa-tudi", "aria-expanded": "false", "aria-controls": "tudi-panel" },
     h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte sf-tudi-ansikte--liten" }), h("span", {}, "Fråga Tudi"));
@@ -382,7 +336,7 @@ export default async function visa(main, { kursId, filId }) {
     h("div", { class: "sf-rad-mellan" },
       h("div", { class: "sf-rad sf-rad--tat" }, h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }), h("span", { class: "sf-rad-rubrik" }, "Tudi")),
       fallIhop),
-    duArPa, forklara, forklaringRuta, tudi.el);
+    duArPa, forklara, tudi.el);
   let panelOppen = matchMedia("(min-width: 1024px)").matches;
   function ritaPanel(fokus) {
     panel.hidden = !panelOppen;

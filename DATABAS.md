@@ -56,6 +56,7 @@ En student kan ha högst 50 kurser.
 | `senast_sida` | Sidan studenten senast läste. Visaren öppnar där. |
 | `senast_last` | När studenten senast läste i filen. Tom om filen aldrig har öppnats. Nästa steg och "Du läste senast" bygger på den. |
 | `innehall` | sha256 av filens text. Laddar samma student upp samma PDF igen återanvänds vektorerna och sammanfattningen, utan nya anrop. |
+| `typ` | Vad filen är, från sammanfattningen: `tenta`, `kursplan`, `kursbok`, `slides`, `artikel`, `anteckningar` eller `annat`. Tom för filer från före typen, som då gissas från titeln. Tudi använder gamla tentor och kursplanen när studenten frågar om tentan. |
 | `kort` | En mening om vad filen handlar om, från sammanfattningen. |
 | `sammanfattning` | Sammanfattningen av hela filen, högst cirka 200 ord. Görs en gång vid uppladdningen. Tudi använder den i chatten, i Förklara den här sidan och i Börja här. Tom tills den är klar. |
 | `delar` | Filens delar som JSON: sidor och en mening om vad varje del handlar om. |
@@ -102,6 +103,7 @@ Samtalet med Tudi i en kurs. Förklaringar av enskilda ord i visaren sparas inte
 | `text` | Frågan, eller Tudis svar med sidhänvisningar som `[s. 12]`. För följdknapparna sparas knappens text, till exempel "Enklare". |
 | `kallor` | Sidhänvisningarna i Tudis svar som JSON, i samma ordning som de står i texten: fil‑id, filens titel och sida. Servern har tagit bort hänvisningar till sidor Tudi inte fick se. |
 | `tid` | När det skrevs. |
+| `meta` | Vad Tudis svar bygger på, som JSON. En förklaring av en sida: fil, sida, sätt, om bilden var med och nyckeln i `ai_cache`, så att knapparna under svaret kan förklara samma sida på ett annat sätt. Ett svar i chatten: typen som nano valde, så att knapparna får samma material. Tom för studentens frågor. |
 
 Bilden av sidan som skickas med Förklara den här sidan sparas inte, och inte heller ljudet från tal till text.
 
@@ -148,7 +150,7 @@ Mätningen av varje anrop till OpenAI, så att kostnaden per funktion och dag g�
 | Fält | Varför |
 |---|---|
 | `dag`, `tid` | När anropet gjordes. Dagen byts klockan 06.00 som för taken. |
-| `funktion` | `sida`, `ord`, `chatt`, `sammanfattning`, `ova`, `ratta`, `borja`, `vektorer`, `sok`, `tal` eller `upplasning`. |
+| `funktion` | `sida`, `ord`, `valj` (nano sorterar en fråga), `chatt`, `sammanfattning`, `ova`, `ratta`, `borja`, `vektorer`, `sok`, `tal` eller `upplasning`. |
 | `modell` | Modellen som användes. |
 | `student` | Studentens slumpade `matid`. Går inte att koppla till en student när kontot är raderat. |
 | `token_in`, `token_cache`, `token_ut`, `token_tank` | OpenAI:s egen räkning. `token_cache` är början av anropet som OpenAI återanvände och som kostar en tiondel. `token_tank` är tänkandet, som ingår i `token_ut`. |

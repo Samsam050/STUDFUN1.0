@@ -40,7 +40,7 @@ Testerna startar en egen server med en tom datamapp och provar också det som sk
 | `prompts/` | Systemprompterna, en fil per funktion. Kan ändras utan att röra koden. |
 | `kallor.js` | Kontrollerar sidhänvisningarna `[s. 12]` i Tudis svar. |
 | `upplasning.js` | Uppläsning med sparat ljud och dagstak. |
-| `tudi.js` | Chatten med Tudi: sökning i kursen, sammanfattningarna, sidan som är öppen, tal till text och dagstak. |
+| `tudi.js` | Chatten med Tudi: nano sorterar frågan, Luna får materialet för den (sidan, vissa sidor, ett dokument, kursen, tentor eller utdrag), och knappen Förklara den här sidan. Tal till text och dagstak. |
 | `forklara.js` | Förklara den här sidan, sätten att förklara och ett ord. |
 | `ova.js` | Quiz och flashcards: urval av material, nya omgångar, rättning och sparade svar. |
 | `borja.js` | Börja här: Tudis förslag på i vilken ordning materialet kan läsas. |
