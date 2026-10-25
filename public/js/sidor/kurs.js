@@ -1,0 +1,164 @@
+/* En kurs: namn och termin, Börja här, materialet och radera kursen.
+   Fråga Tudi och Öva är spärrade tills en PDF är klar. */
+import { h, ikon, meddelande, felMedForsok, dialog, laddar } from "../dom.js";
+import { api, app } from "../app.js";
+import { kursDialog } from "../kurs-delar.js";
+import { kommIhagKurs } from "./fraga.js";
+
+export default async function visa(main, { kursId }) {
+  let kurs;
+  try { kurs = await api("GET", `/api/kurser/${kursId}`); }
+  catch (e) {
+    if (e.status === 404) {
+      main.append(h("div", { class: "sf-sida" }, h("h1", {}, "Kursen finns inte"),
+        h("p", {}, "Den kan ha raderats. Du hittar dina kurser under Mina kurser."),
+        h("a", { href: "/kurser", class: "sf-btn sf-btn--primar sf-btn--sjalv" }, "Till Mina kurser")));
+    } else {
+      main.append(h("div", { class: "sf-sida" }, h("h1", {}, "Kursen"),
+        felMedForsok("Kunde inte hämta kursen.", () => { main.replaceChildren(); visa(main, { kursId }); })));
+    }
+    return;
+  }
+  document.title = `${kurs.namn} · StudFun`;
+  kommIhagKurs(kurs.id);
+
+  const rubrik = h("h1", {}, kurs.namn);
+  const termin = h("p", { class: "sf-ingress sf-text-2" }, kurs.termin);
+  const status = h("div", { class: "sf-status-rad" });
+  if (app.kvitto) { status.append(meddelande("klar", app.kvitto)); app.kvitto = null; }
+
+  const andra = () => kursDialog({ kurs, klar: ny => {
+    kurs = ny;
+    rubrik.textContent = ny.namn;
+    termin.textContent = ny.termin;
+    document.title = `${ny.namn} · StudFun`;
+    status.replaceChildren(meddelande("klar", "Ändringen är sparad."));
+  } });
+
+  const radera = () => dialog({
+    rubrik: `Radera kursen ${kurs.namn}?`,
+    text: "Allt material, alla frågor och alla flashcards i kursen försvinner. Det går inte att ångra.",
+    knapp: "Radera kursen",
+    utfor: async () => {
+      await api("DELETE", `/api/kurser/${kurs.id}`);
+      return () => {
+        const klar = h("section", { class: "sf-ruta sf-ruta--stor", role: "status" },
+          h("h1", { tabindex: "-1" }, `Kursen ${kurs.namn} är raderad`),
+          h("p", {}, "Materialet, frågorna och flashcards är borttagna."),
+          h("a", { href: "/", class: "sf-btn sf-btn--primar" }, "Till startsidan"));
+        main.replaceChildren(h("div", { class: "sf-sida sf-sida--smal" }, klar));
+        klar.querySelector("h1").focus();
+      };
+    },
+  });
+
+  /* Börja här: Tudis förslag på i vilken ordning materialet kan läsas. Visas när det finns ett förslag. */
+  const borjaRuta = h("section", { class: "sf-stapel sf-stapel--luft", "aria-labelledby": "borja-rubrik", hidden: true });
+  let borjaNycklar = "";
+  async function hamtaBorja(ny = false) {
+    let r;
+    try { r = await api(ny ? "POST" : "GET", `/api/kurser/${kurs.id}/borja`); }
+    catch (e) {
+      if (ny) { borjaRuta.querySelector(".sf-borja-fel")?.replaceChildren(meddelande("fel", e.message)); borjaRuta.querySelector("button").disabled = false; }
+      return;
+    }
+    borjaRuta.hidden = !r.steg.length;
+    borjaRuta.replaceChildren(
+      h("div", { class: "sf-rad-mellan" }, h("h2", { id: "borja-rubrik" }, "Börja här"),
+        h("button", { type: "button", class: "sf-btn sf-btn--sekundar sf-btn--liten", onclick: e => { e.currentTarget.disabled = true; hamtaBorja(true); } }, "Föreslå en ny ordning")),
+      h("p", { class: "sf-hjalp" }, "Tudis förslag på en ordning att läsa materialet i. Du väljer själv."),
+      h("ol", { class: "sf-lista sf-borja" }, r.steg.map(s => h("li", { class: "sf-material-rad" },
+        h("div", { class: "sf-stapel sf-vaxer" },
+          h("span", { class: "sf-rad-rubrik sf-bryt" }, s.titel, ", ", s.fran === s.till ? `sida ${s.fran}` : `sidorna ${s.fran}–${s.till}`),
+          s.varfor && h("span", { class: "sf-hjalp" }, s.varfor)),
+        h("a", { href: `/kurser/${kurs.id}/visa/${s.dokId}?sida=${s.fran}`, class: "sf-btn sf-btn--sekundar sf-btn--liten",
+          "aria-label": `Läs ${s.titel} från sida ${s.fran}` }, "Läs")))),
+      h("div", { class: "sf-borja-fel" }));
+  }
+
+  /* Materialet. Uppdateras av sig själv medan någon fil bearbetas. */
+  const materialRuta = h("div", {}, laddar("Hämtar materialet …", 1));
+  const fragaRuta = h("span", { class: "sf-knapprad" });
+  const fragaSparr = h("p", { id: "fraga-sparr", class: "sf-hjalp", hidden: true }, "Fråga Tudi och Öva går att använda när en PDF i kursen är klar.");
+  const meddela = h("p", { class: "sf-dold", "aria-live": "polite" });
+  let forra = new Map();
+  async function hamtaMaterial() {
+    let lista;
+    try { ({ dokument: lista } = await api("GET", `/api/kurser/${kurs.id}/dokument`)); }
+    catch { materialRuta.replaceChildren(felMedForsok("Kunde inte hämta materialet.", hamtaMaterial)); return; }
+    for (const d of lista) if (forra.get(d.id) === "bearbetas" && d.status === "klar") meddela.textContent = `${d.titel} är klar.`;
+    forra = new Map(lista.map(d => [d.id, d.status]));
+    materialRuta.replaceChildren(lista.length ? h("ul", { class: "sf-lista sf-material" }, lista.map(materialRad)) : tomKurs());
+    /* Fråga Tudi är spärrad, med en förklaring, tills en PDF är klar */
+    const klar = lista.some(d => d.status === "klar");
+    const knapp = (adress, ik, text, klass) => (klar
+      ? h("a", { href: adress, class: `sf-btn ${klass}` }, ikon(ik, 22), text)
+      : h("button", { type: "button", class: `sf-btn ${klass}`, disabled: true, "aria-describedby": "fraga-sparr" }, ikon(ik, 22), text));
+    fragaRuta.replaceChildren(knapp(`/kurser/${kurs.id}/fraga`, "chatt", "Fråga Tudi", "sf-btn--primar"), knapp(`/kurser/${kurs.id}/ova/quiz`, "ova", "Öva", "sf-btn--sekundar"));
+    fragaSparr.hidden = klar;
+    /* Börja här hämtas igen när det har kommit nytt material eller något har raderats */
+    const nycklar = lista.filter(d => d.status === "klar").map(d => d.id).join(",");
+    if (nycklar !== borjaNycklar) { borjaNycklar = nycklar; if (nycklar) hamtaBorja(); else borjaRuta.hidden = true; }
+    if (lista.some(d => d.status === "bearbetas")) setTimeout(() => { if (materialRuta.isConnected) hamtaMaterial(); }, 3000);
+  }
+  const tomKurs = () => h("div", { class: "sf-tom" },
+    h("img", { src: "/bilder/tudi.png", alt: "", class: "sf-tom-tudi" }),
+    h("div", { class: "sf-stapel sf-stapel--luft sf-vaxer" },
+      h("p", { class: "sf-rad-rubrik" }, "Kursen har inget material än"),
+      h("p", {}, "Ladda upp en PDF, till exempel kursboken eller anteckningar från en föreläsning. Sedan kan Tudi läsa upp, förklara och göra övningar."),
+      h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--accent sf-btn--sjalv" }, ikon("laddaUpp", 22), "Ladda upp din första PDF")));
+  const STATUS = {
+    klar: ["klar", "bock", "Klar"],
+    bearbetas: ["vantar", "klocka", "Tudi läser", "Tudi läser igenom materialet. Det brukar ta någon minut."],
+    fel: ["fel", "fel", "Gick inte att läsa", "Något gick fel när filen gjordes i ordning. Radera den och ladda upp den igen."],
+  };
+  function materialRad(d) {
+    const [klass, ik, text, not] = STATUS[d.status] || STATUS.bearbetas;
+    return h("li", { class: "sf-material-rad" },
+      h("span", { class: "sf-ikonruta sf-ikonruta--gradde", "aria-hidden": "true" }, ikon("dokument")),
+      h("div", { class: "sf-stapel sf-vaxer" },
+        h("span", { class: "sf-rad-rubrik sf-bryt" }, d.titel),
+        h("span", { class: "sf-rad" },
+          h("span", { class: "sf-etikett" }, d.sidor === 1 ? "1 sida" : `${d.sidor} sidor`),
+          h("span", { class: `sf-marke sf-marke--${klass}` }, ikon(ik, 18), text)),
+        not && h("span", { class: "sf-hjalp" }, not)),
+      h("div", { class: "sf-knapprad" },
+        d.status !== "fel" && h("a", { href: `/kurser/${kurs.id}/visa/${d.id}?sida=${d.senastSida}`, class: "sf-btn sf-btn--sekundar sf-btn--liten", "aria-label": `Öppna ${d.titel}` }, "Öppna"),
+        d.status === "fel" && h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--sekundar sf-btn--liten" }, "Ladda upp igen"),
+        h("button", { type: "button", class: "sf-btn sf-btn--fara-kant sf-btn--liten", "aria-label": `Radera ${d.titel}`, onclick: () => raderaFil(d) }, "Radera")));
+  }
+  const raderaFil = d => dialog({
+    rubrik: `Radera ${d.titel}?`,
+    text: "Filen försvinner, och Tudi kan inte längre svara utifrån den. Det går inte att ångra.",
+    knapp: "Radera filen",
+    utfor: async () => {
+      await api("DELETE", `/api/dokument/${d.id}`);
+      return () => {
+        status.replaceChildren(meddelande("klar", `${d.titel} är raderad.`));
+        hamtaMaterial();
+        status.querySelector(".sf-medd").setAttribute("tabindex", "-1");
+        status.querySelector(".sf-medd").focus();
+      };
+    },
+  });
+  hamtaMaterial();
+
+  main.append(h("div", { class: "sf-sida" },
+    h("header", { class: "sf-kurs-huvud" },
+      h("a", { href: "/kurser", class: "sf-tillbaka" }, ikon("tillbaka", 20), "Alla kurser"),
+      h("div", { class: "sf-sidhuvud sf-sidhuvud--knapp" },
+        h("div", { class: "sf-stapel" }, rubrik, termin),
+        h("div", { class: "sf-knapprad" },
+          h("a", { href: `/kurser/${kurs.id}/ladda-upp`, class: "sf-btn sf-btn--accent" }, ikon("laddaUpp", 22), "Ladda upp PDF"),
+          fragaRuta,
+          h("button", { type: "button", class: "sf-btn sf-btn--sekundar", onclick: andra }, "Ändra namn och termin"))),
+      fragaSparr),
+    status,
+    borjaRuta,
+    h("section", { class: "sf-stapel sf-stapel--luft", "aria-labelledby": "material-rubrik" },
+      h("h2", { id: "material-rubrik" }, "Material"), materialRuta, meddela),
+    h("section", { class: "sf-sektion sf-rad-mellan", "aria-labelledby": "radera-rubrik" },
+      h("div", { class: "sf-stapel sf-vaxer" }, h("h2", { id: "radera-rubrik" }, "Radera kursen"),
+        h("p", { class: "sf-hjalp" }, "Allt material, alla frågor och alla flashcards i kursen försvinner.")),
+      h("button", { type: "button", class: "sf-btn sf-btn--fara-kant", onclick: radera }, "Radera kursen"))));
+}

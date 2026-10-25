@@ -1,0 +1,152 @@
+/*
+  Förklara den här sidan, knapparna för att få samma sida förklarad på ett annat sätt, och ett ord.
+  Knappen Förklara den här sidan går genom chatten (tudi.js), så att förklaringen hamnar i samtalet i tidsordning.
+
+  Tudi får dokumentets titel och sammanfattning (lika för alla sidor, därför först) och sedan sidans text.
+  En bild av sidan skickas bara när appen säger att den behövs: sidan har under 400 tecken text,
+  bilder täcker mer än 30 % av sidan, eller studenten har tryckt Titta på bilden också.
+  Sidans text tas från databasen. Det är samma text som pdf.js plockade ut i webbläsaren vid uppladdningen.
+
+  Svaret sparas med dokumentet, sidan och sättet som nyckel. Samma knapp på samma sida kostar inget andra gången.
+
+  Ett ord: bara ordet och meningen det står i skickas, inte sidan. Svaret sparas med ordet, meningen och valet,
+  så ett vanligt ord i samma mening förklaras bara en gång.
+*/
+const { forbruka } = require("./db");
+const kallor = require("./kallor");
+
+const SIDA_PER_DAG = 60;
+const ORD_PER_DAG = 200;
+const MAX_BILD = 2_500_000; // tecken i data-adressen, ungefär 1,8 MB bild
+const SATT = { enklare: "satt-enklare", steg: "satt-steg-for-steg", exempel: "satt-exempel", annat: "satt-annat-satt" };
+
+module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
+  function dokument(uid, id) {
+    const d = db.prepare("SELECT * FROM documents WHERE id = ? AND user_id = ? AND status = 'klar'").get(id, uid);
+    if (!d) throw new Fel(404, "Filen finns inte.");
+    return d;
+  }
+  const sidtext = (dokId, nr) => db.prepare("SELECT text FROM chunks WHERE document_id = ? AND sida = ? ORDER BY id").all(dokId, nr).map(b => b.text).join(" ");
+  const delar = d => { try { return JSON.parse(d.delar || "[]"); } catch { return []; } };
+
+  /* Dokumentets titel och sammanfattning. Lika i alla anrop om dokumentet, så OpenAI kan spara början. */
+  function oversikt(d) {
+    const rader = [`Dokument: ${d.titel}`, `Antal sidor: ${d.sidor}`];
+    if (d.sammanfattning) rader.push(`Sammanfattning: ${d.sammanfattning}`);
+    const del = delar(d);
+    if (del.length) rader.push("Delar:", ...del.map(x => `• s. ${x.sidor}: ${x.handlar_om}`));
+    return ai.material(rader.join("\n"));
+  }
+
+  /* Sidor Tudi får hänvisa till: sidan själv, och dokumentets delar som spann */
+  function tillatna(d, nr) {
+    const t = kallor.tillatna();
+    t.sida(d.id, nr);
+    for (const x of delar(d)) t.spann(d.id, x.sidor);
+    for (const a of db.prepare("SELECT fran, till FROM avsnitt WHERE document_id = ?").all(d.id)) t.spann(d.id, `${a.fran}-${a.till}`);
+    return t;
+  }
+
+  function lasBild(bild) {
+    if (bild === undefined || bild === null) return null;
+    if (typeof bild !== "string" || bild.length > MAX_BILD || !/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(bild)) {
+      throw new Fel(400, "Bilden av sidan gick inte att skicka.");
+    }
+    return bild;
+  }
+
+  /* Förklarar sidan nr i dokumentet d. Används av adressen nedan och av chatten.
+     satt   ett av sätten att förklara, med forra: nyckeln till förklaringen studenten vill ha på ett annat sätt
+     bild   en bild av sidan, bara när appens regel säger det
+     kvot   false när frågan redan har räknats mot chattens tak
+     Returnerar { text, kallor, sida, satt, bild, nyckel } */
+  async function forklaraSida({ uid, d, nr, satt, forraNyckel, bild = null, kvot = true }) {
+    if (nr < 1 || nr > d.sidor) throw new Fel(404, "Sidan finns inte.");
+    if (satt !== undefined && satt !== null && !SATT[satt]) throw new Fel(400, "Det valet finns inte.");
+    let forra = null;
+    if (satt) {
+      forra = ai.sparat(uid, forraNyckel);
+      if (!forra || !forra.typ.startsWith("sida:") || forra.dokId !== d.id || forra.svar.sida !== nr) throw new Fel(400, "Tryck på Förklara den här sidan först.");
+    }
+    if (!CONFIG.openaiKey) throw new Fel(503, "Tudi kunde inte förklara sidan just nu.");
+
+    /* "Förklara på ett annat sätt" andra gången i rad på samma sida: Tudi får tänka lite mer */
+    const effort = satt === "annat" && forra.typ === "sida:annat" ? CONFIG.ai.sida.igen : CONFIG.ai.sida.effort;
+    const prompter = ["tudi-grund", "forklara-sidan", ...(satt ? [SATT[satt]] : [])];
+    const text = sidtext(d.id, nr);
+    const typ = `sida:${satt || "forklara"}`;
+    let r;
+    try {
+      r = await ai.cachad({
+        uid, typ, dokId: d.id,
+        nyckel: [ai.version("sida", effort, ...prompter), d.id, nr, !!bild, text, d.sammanfattning, forra ? forra.svar.text : null],
+      }, async () => {
+        if (kvot && !forbruka(db, uid, "sida", 1, SIDA_PER_DAG)) {
+          throw new Fel(429, "Du har bett Tudi förklara dagens sidor. Det går igen i morgon från klockan 06.00. Sidor Tudi redan har förklarat kan du se igen.");
+        }
+        const sidan = `Sidan studenten har öppen: sida ${nr} av ${d.sidor}.\n\n${ai.material(text || "Sidan har ingen text.")}`;
+        const ut = await ai.svar({
+          funktion: "sida", uid, effort, cache: `dok:${d.id}`,
+          system: ai.tudiPrompt("forklara-sidan"),
+          fast: oversikt(d),
+          inne: [
+            { role: "user", content: bild ? [{ type: "input_text", text: sidan }, { type: "input_image", image_url: bild, detail: "high" }] : sidan },
+            ...(satt ? [{ role: "assistant", content: forra.svar.text }, { role: "user", content: ai.prompt(SATT[satt]) }] : []),
+          ],
+        });
+        const k = kallor.kontrollera(ut, { till: tillatna(d, nr), dokument: [{ id: d.id, titel: d.titel }], standard: d.id });
+        return { text: k.text.slice(0, 4000), kallor: k.kallor, sida: nr };
+      });
+    } catch (e) {
+      if (e instanceof Fel) throw e;
+      console.error(`[sf] forklara sidan misslyckades u=${uid} d=${d.id} ${e.code || e.name}`);
+      throw new Fel(502, "Tudi kunde inte förklara sidan just nu. Försök igen om en stund.");
+    }
+    return { text: r.svar.text, kallor: r.svar.kallor, sida: nr, satt: satt || null, bild: !!bild, nyckel: r.nyckel };
+  }
+
+  /* Samma förklaring utan chatten. Appen använder chatten, så att förklaringen hamnar i samtalet. */
+  rutt("POST", "/api/dokument/:id/sidor/:nr/forklara", async ctx => {
+    const { satt, forra, bild } = ctx.body;
+    return forklaraSida({ uid: ctx.user.id, d: dokument(ctx.user.id, ctx.params.id), nr: ctx.params.nr, satt, forraNyckel: forra, bild: lasBild(bild) });
+  }, { maxBody: 3 * 1024 * 1024 });
+
+  /* Förklara eller ge exempel på ett ord i visaren. Sparas inte i chatten. */
+  rutt("POST", "/api/kurser/:kursId/ord", async ctx => {
+    const uid = ctx.user.id, kursId = ctx.params.kursId;
+    if (!db.prepare("SELECT 1 FROM courses WHERE id = ? AND user_id = ?").get(kursId, uid)) throw new Fel(404, "Kursen finns inte.");
+    const { ord, mening, typ, sida } = ctx.body;
+    if (typeof ord !== "string" || !ord.trim() || ord.length > 60) throw new Fel(400, "Ordet saknas.");
+    if (typeof mening !== "string" || mening.length > 800) throw new Fel(400, "Meningen är för lång.");
+    if (typ !== "forklara" && typ !== "exempel") throw new Fel(400, "Det valet finns inte.");
+    /* Sidan används bara för att svaret ska raderas med filen */
+    const dokId = sida && Number.isInteger(sida.dokId)
+      ? db.prepare("SELECT id FROM documents WHERE id = ? AND user_id = ? AND course_id = ?").get(sida.dokId, uid, kursId)?.id ?? null : null;
+    if (!CONFIG.openaiKey) throw new Fel(503, "Tudi kunde inte svara just nu.");
+    const rent = ord.trim(), meningen = mening.replace(/\s+/g, " ").trim();
+    let r;
+    try {
+      r = await ai.cachad({
+        uid, typ: `ord:${typ}`, dokId, kursId,
+        nyckel: [ai.version("ord", undefined, "tudi-grund", "ord"), rent.toLowerCase(), meningen],
+      }, async () => {
+        if (!forbruka(db, uid, "ord", 1, ORD_PER_DAG)) {
+          throw new Fel(429, "Du har bett Tudi om hjälp med dagens ord. Det går igen i morgon från klockan 06.00. Läs upp fungerar som vanligt.");
+        }
+        const ut = await ai.svar({
+          funktion: "ord", uid, cache: "ord",
+          system: ai.tudiPrompt("ord"),
+          inne: [{ role: "user", content: `VAL: ${typ === "forklara" ? "FÖRKLARA" : "EXEMPEL"}\nORD: ${ai.material(rent)}\nMENING: ${ai.material(meningen || rent)}` }],
+        });
+        /* Tudi fick ingen sida, så en sidhänvisning kan bara vara påhittad */
+        return { text: kallor.kontrollera(ut, { till: kallor.tillatna(), dokument: [] }).text.slice(0, 1000) };
+      });
+    } catch (e) {
+      if (e instanceof Fel) throw e;
+      console.error(`[sf] ord misslyckades u=${uid} ${e.code || e.name}`);
+      throw new Fel(502, "Tudi kunde inte svara just nu. Försök igen om en stund.");
+    }
+    return { svar: r.svar.text };
+  });
+  return { forklaraSida, lasBild, SATT };
+};
