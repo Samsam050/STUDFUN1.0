@@ -46,6 +46,8 @@ const TYPER = ["sidan", "sidor", "dokument", "kurs", "tenta", "specifik", "ovrig
 /* Ord som betyder hela dokumentet, och ord som betyder sidan. Används om nano väljer sidan fast frågan gäller hela PDF:en. */
 const HELA_DOKUMENTET = /(?:^|[^\p{L}])(pdf|pdf:en|pdfen|pdf-en|dokument|dokumentet|fil|filen|bok|boken|kapitel|kapitlet|kompendiet|artikel|artikeln|slides|slidesen|föreläsning|föreläsningen)(?![\p{L}])/iu;
 const SIDAN = /(?:^|[^\p{L}])(sida|sidan|bild|bilden|figur|figuren|diagram|diagrammet|tabell|tabellen)(?![\p{L}])/iu;
+/* Frågor om helheten: vad något handlar om, sammanfatta, det viktigaste */
+const OVERGRIPANDE = /(vad handlar|handlar\s.*\som\b|sammanfatta|sammanfattning|viktigast|huvudpoäng|huvudsak|översikt|övergripande|i stora drag)/iu;
 const VAL = {
   namn: "val",
   schema: {
@@ -62,6 +64,10 @@ function cosinus(a, b) {
 const vektorAv = blob => new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4);
 const lasDelar = d => { try { return JSON.parse(d.delar || "[]"); } catch { return []; } };
 const token = text => Math.ceil(text.length / TECKEN_PER_TOKEN);
+/* Vad en del av materialet är, för loggen. Aldrig titlar eller text. */
+const slag = del => [[/^Hela texten i /, "hel text"], [/är för långt för att skickas helt/, "sammanfattningar av avsnitt"], [/^Sidorna studenten frågar om/, "vissa sidor"],
+  [/^Sidan studenten har öppen/, "öppen sida"], [/^Utdrag ur materialet/, "utdrag"], [/^Sammanfattningar av avsnitten i kursens/, "kursens avsnitt"],
+  [/^Det finns inga gamla tentor/, "inga tentor"], [/^Studenten har .* öppen\.$/, "vilken sida som är öppen"]].find(([re]) => re.test(del))?.[1] || "annat";
 const lasMeta = m => { try { return JSON.parse(m.meta || "{}"); } catch { return {}; } };
 
 module.exports = function ({ db, CONFIG, Fel, rutt, ai, forklara }) {
@@ -122,8 +128,26 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai, forklara }) {
     return { text: `${d.titel} (${dokTyp(d)}, ${d.sidor} sidor) är för långt för att skickas helt. Här är sammanfattningarna av avsnitten:\n${ai.material(text)}`, token: token(text) };
   }
 
-  /* Nano sorterar frågan. Returnerar { typ, dok, sidor }. Går något fel blir det specifik. */
+  /* Rättar nanos val där frågans ord säger något annat, och där det som valdes inte finns.
+     Körs också när nano inte svarar, så att "vad handlar den här pdf:en om" alltid får dokumentet. */
+  function ratta(val, { fraga, sida, dok }) {
+    let { typ, dokId, sidor } = val;
+    const d = dok.find(x => x.id === dokId) || (sida && dok.find(x => x.id === sida.dokId)) || (dok.length === 1 ? dok[0] : null);
+    const helt = HELA_DOKUMENTET.test(fraga) && !SIDAN.test(fraga);
+    /* Frågan nämner PDF:en, boken eller dokumentet men inte sidan: den gäller hela dokumentet, inte sidan */
+    if (typ === "sidan" && helt) typ = "dokument";
+    /* "Vad handlar den här pdf:en om", "sammanfatta boken": dokumentet, också om nano valde något annat */
+    if (["sidan", "specifik", "ovrigt"].includes(typ) && helt && OVERGRIPANDE.test(fraga)) typ = "dokument";
+    if (typ === "sidan" && !sida) typ = "specifik";
+    if (typ === "sidor" && !sidor.length) typ = "specifik";
+    /* Ett dokument utan att det går att veta vilket: sammanfattningarna av hela kursen */
+    if (typ === "dokument" && !d) typ = OVERGRIPANDE.test(fraga) ? "kurs" : "specifik";
+    return { typ, dokId: ["dokument", "sidor"].includes(typ) && d ? d.id : null, sidor: typ === "sidor" ? sidor : [] };
+  }
+
+  /* Nano sorterar frågan. Returnerar { typ, dokId, sidor }. Går något fel blir det specifik, rättat av ratta(). */
   async function valj(uid, kursId, { fraga, historik, sida, dok }) {
+    let val = { typ: "specifik", dokId: null, sidor: [] }, nano = "fel";
     try {
       const ut = await ai.svar({
         funktion: "valj", uid, schema: VAL, cache: `kurs:${kursId}`,
@@ -135,18 +159,16 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai, forklara }) {
           `Frågan:\n${ai.material(fraga)}`,
         ].filter(Boolean).join("\n\n") }],
       });
-      let typ = TYPER.includes(ut.typ) ? ut.typ : "specifik";
+      nano = TYPER.includes(ut.typ) ? ut.typ : "specifik";
       const d = dok.find(x => String(x.id) === String(ut.dokument_id).trim()) || (sida && dok.find(x => x.id === sida.dokId)) || (dok.length === 1 ? dok[0] : null);
       const sidor = [...new Set((Array.isArray(ut.sidor) ? ut.sidor : []).filter(n => Number.isInteger(n) && d && n >= 1 && n <= d.sidor))].slice(0, MAX_SIDOR);
-      /* Frågan nämner PDF:en, boken eller dokumentet men inte sidan: den gäller hela dokumentet, vad nano än säger */
-      if (typ === "sidan" && HELA_DOKUMENTET.test(fraga) && !SIDAN.test(fraga)) typ = "dokument";
-      if (typ === "sidan" && !sida) typ = "specifik";
-      if ((typ === "dokument" && !d) || (typ === "sidor" && !sidor.length)) typ = "specifik";
-      return { typ, dokId: d ? d.id : null, sidor };
+      val = { typ: nano, dokId: d ? d.id : null, sidor };
     } catch (e) {
-      console.error(`[sf] valj misslyckades u=${uid} ${e.code || e.name}`);
-      return { typ: "specifik", dokId: null, sidor: [] };
+      console.error(`[sf] valj misslyckades u=${uid} ${e.code || e.name}${e.detalj ? ` ${e.detalj}` : ""}`);
     }
+    const ratt = ratta(val, { fraga, sida, dok });
+    ai.logg(`valj nano=${nano} blev=${ratt.typ}${ratt.dokId ? ` dok=${ratt.dokId}` : ""}${ratt.sidor.length ? ` sidor=${ratt.sidor.join(",")}` : ""}${sida ? ` öppen=${sida.dokId}:${sida.nr}` : ""}`);
+    return ratt;
   }
 
   /* Materialet för frågans typ. Returnerar texten till Luna och sidorna Tudi får hänvisa till. */
@@ -207,6 +229,8 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai, forklara }) {
   async function svara(uid, kursId, { fraga, sokText, sida, historik, val, dok }) {
     try {
       const { delar, till } = await material(uid, kursId, val, { dok, sida, sokText: sokText || fraga });
+      /* Vad Luna får, utan text: rubriken på varje del och ungefär hur många token den är */
+      ai.logg(`chatt material typ=${val.typ} ${delar.map(x => `[${slag(x)} ~${token(x)} token]`).join(" ") || "[inget extra]"}`);
       const ut = await ai.svar({
         funktion: "chatt", uid, cache: `kurs:${kursId}`,
         system: ai.tudiPrompt("chatt"),

@@ -142,8 +142,12 @@ test("går nano fel blir det specifik, och sidan eller ett dokument som inte fin
   assert.match(inneText(luna()[0].json), /Utdrag ur materialet/, "sidan utan öppen sida blir specifik");
   oa.anrop.length = 0;
   valjer("dokument", 99999);
-  await fraga({ fraga: "Sammanfatta" });
+  await fraga({ fraga: "Vad står det om skadestånd?" });
   assert.match(inneText(luna()[0].json), /Utdrag ur materialet/, "inget dokument att välja blir specifik");
+  oa.anrop.length = 0;
+  valjer("dokument", 99999);
+  await fraga({ fraga: "Sammanfatta" });
+  assert.match(inneText(luna()[0].json), /Sammanfattningar av avsnitten i kursens dokument/, "en fråga om helheten utan dokument blir hela kursen");
 });
 
 test("knapparna under svaren: en sida förklaras på ett annat sätt, och chattsvar får samma material igen", async () => {
@@ -192,4 +196,20 @@ test("väljer nano sidan fast frågan gäller hela PDF:en, blir det dokumentet s
   valjer("sidan");
   const sidan = await fraga({ fraga: "Förklara bilden i boken", sida: { dokId: kort, nr: 1 } });
   assert.equal(sidan.json.svar.meta.typ, "sida", "nämner frågan bilden gäller den sidan");
+});
+
+test("vad handlar den här pdf:en om: dokumentet, också när nano väljer specifik eller inte svarar", async () => {
+  valjer("specifik");
+  await fraga({ fraga: "vad handlar den här pdfen om", sida: { dokId: lang, nr: 3 } });
+  assert.match(inneText(luna()[0].json), /Lång bok \(kursbok, 3 sidor\) är för långt/);
+  assert.ok(!inneText(luna()[0].json).includes("Utdrag ur materialet"));
+  oa.anrop.length = 0;
+  oa.felOm = (url, json) => json.text?.format?.name === "val";
+  await fraga({ fraga: "Sammanfatta boken", sida: { dokId: kort, nr: 1 } });
+  assert.match(inneText(luna()[0].json), /Hela texten i Kort text/);
+  oa.felOm = null;
+  oa.anrop.length = 0;
+  valjer("specifik");
+  await fraga({ fraga: "Vad betyder accept i boken?", sida: { dokId: lang, nr: 1 } });
+  assert.match(inneText(luna()[0].json), /Utdrag ur materialet/, "en specifik fråga som nämner boken är fortfarande specifik");
 });

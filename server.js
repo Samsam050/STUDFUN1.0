@@ -36,6 +36,7 @@ const CONFIG = {
   openaiKey: process.env.OPENAI_API_KEY || "",
   openaiBase: process.env.OPENAI_BASE || "https://api.openai.com",
   vektorDim: 512, // räcker för sökningen och gör den lätt nog för en liten server
+  aiLogg: process.env.AI_LOGG === "fullt" ? "fullt" : process.env.AI_LOGG === "1" ? "1" : "", // felsökning, se ai.js
 };
 /* Modell, tänkande och tak för svarslängd för varje AI-funktion. Modell och tänkande går att byta i .env utan ny kod.
    Tomt tänkande (EFFORT_X=) skickar inget tänkande alls, för modeller som inte tänker. */
@@ -44,7 +45,7 @@ const tank = (namn, standard) => process.env[namn] ?? standard;
 CONFIG.ai = {
   ord: { modell: modell("MODEL_ORD", "gpt-6-luna"), effort: tank("EFFORT_ORD", "none"), maxUt: 150 },
   sida: { modell: modell("MODEL_SIDA", "gpt-6-luna"), effort: tank("EFFORT_SIDA", "none"), igen: tank("EFFORT_SIDA_IGEN", "low"), maxUt: 600 },
-  valj: { modell: modell("MODEL_VALJ", "gpt-5-nano"), effort: tank("EFFORT_VALJ", "minimal"), maxUt: 200 },
+  valj: { modell: modell("MODEL_VALJ", "gpt-5-nano"), effort: tank("EFFORT_VALJ", "minimal"), maxUt: 400 },
   chatt: { modell: modell("MODEL_CHATT", "gpt-6-luna"), effort: tank("EFFORT_CHATT", "low"), maxUt: 800,
     /* Ett dokument på högst så många token skickas helt till Luna. Längre dokument skickas som sammanfattningar av avsnitten. */
     maxHela: Number(process.env.MAX_TOKEN_HELA) || 15000 },

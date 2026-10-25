@@ -21,6 +21,7 @@ Det här behöver StudFun 1.0 på servern. Läs det tillsammans med Del A i `STU
 * Prompterna ligger i `prompts/`, en fil per funktion. En ändrad prompt gäller direkt, utan omstart.
 * Alla anrop går till Responses API (`/v1/responses`) med `store: false`.
 * Taken per student och dag: Förklara den här sidan 60, ord 200, chatten 80, nya quiz 10, nya flashcards 10, rättningar av korta svar 200, Börja här 10, tal till text 40 och 50 000 tecken ny uppläsning. Svar ur cachen räknas inte. Taken står överst i `forklara.js`, `tudi.js`, `ova.js`, `borja.js` och `upplasning.js`.
+* Felsökning: `AI_LOGG=1` loggar modell, token och vad nano valde, utan text. `AI_LOGG=fullt` sparar också hela anropen i `DATA_DIR/ai-logg/` i 7 dagar. De innehåller studenternas material, så slå bara på det vid test, och ta inte med mappen i säkerhetskopian.
 * Kostnaden per funktion och dag: `npm run kostnad` på servern (med samma `DATA_DIR`). Priserna står i `priser.json`.
 
 ## Datamappen

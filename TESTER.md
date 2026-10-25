@@ -6,7 +6,7 @@
 npm test
 ```
 
-Varje testfil startar en egen server med en tom datamapp och en låtsas‑OpenAI, så inga riktiga anrop görs och inget kostar. Låtsas‑OpenAI:n svarar som Responses API. 100 tester, alla gröna den 25 oktober 2026, efter ombyggnaden enligt `AI-ARKITEKTUR.md`.
+Varje testfil startar en egen server med en tom datamapp och en låtsas‑OpenAI, så inga riktiga anrop görs och inget kostar. Låtsas‑OpenAI:n svarar som Responses API. 104 tester, alla gröna den 25 oktober 2026, efter ombyggnaden enligt `AI-ARKITEKTUR.md`.
 
 | Fil | Tester | Vad |
 |---|---|---|
@@ -18,7 +18,8 @@ Varje testfil startar en egen server med en tom datamapp och en låtsas‑OpenAI
 | `tester/steg6.test.js` | 12 | Quiz och flashcards, urval av sidor, rätt, delvis och fel, påhittade frågor, tak |
 | `tester/steg7.test.js` | 4 | Nästa steg och repetition |
 | `tester/ai.test.js` | 9 | Förklara den här sidan (bild, cache, sätt, tänkande), ett ord, mätning utan text, uppläsning och Börja här |
-| `tester/valj.test.js` | 10 | Nano sorterar frågan: vad nano och Luna får för varje typ, långa och korta dokument, tentor, fel i sorteringen, knapparna och taken |
+| `tester/valj.test.js` | 12 | Nano sorterar frågan: vad nano och Luna får för varje typ, långa och korta dokument, tentor, fel i sorteringen, knapparna och taken |
+| `tester/logg.test.js` | 2 | Felsökning med AI_LOGG: inget med text i loggen, hela anrop bara i filen, och OpenAI:s förklaring vid fel |
 | `tester/angripare.test.js` | 6 | Alla adresser utan inloggning och från fel webbplats, och total radering |
 
 **Inte prövat med riktiga PDF:er och riktiga modeller.** Avsnitt 11 i `AI-ARKITEKTUR.md` (textsida, slide med diagram, engelsk sida, något som inte står i materialet, en PDF som försöker styra Tudi, en inlämningsuppgift, stavfel, sidnummer och token från cache) behöver göras med en riktig nyckel. Låtsas‑OpenAI:n visar bara att rätt saker skickas och att svaren hanteras rätt.

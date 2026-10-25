@@ -188,7 +188,12 @@ Skriv inget mer än så. Ingen hälsning, ingen avslutande fråga.
 | `specifik` | "Vad är en oren accept?" | Sidan som är öppen och de 4 mest lika utdragen ur kursen. |
 | `ovrigt` | "Hej!" | Inget extra material. |
 
-Går sorteringen fel, eller pekar den på en sida eller ett dokument som inte finns, blir det `specifik`. Väljer nano `sidan` fast frågan nämner PDF:en, filen, boken, kapitlet eller dokumentet men inte sidan, bilden eller tabellen, blir det `dokument`. Knapparna under ett svar sorteras inte igen: de använder samma material som svaret.
+Går sorteringen fel, eller pekar den på en sida eller ett dokument som inte finns, blir det `specifik`. Servern rättar också nanos val efter frågans ord, även när nano inte svarar:
+* nämner frågan PDF:en, filen, boken, kapitlet eller dokumentet men inte sidan, bilden eller tabellen, blir `sidan` till `dokument`;
+* är det dessutom en fråga om helheten ("vad handlar den här pdf:en om", "sammanfatta boken", "det viktigaste"), blir också `specifik` och `ovrigt` till `dokument`;
+* en fråga om ett dokument där det inte går att veta vilket (ingen fil öppen och flera i kursen) blir `kurs` om den gäller helheten, annars `specifik`.
+
+Med `AI_LOGG=1` syns valet i serverns logg, till exempel `[ai] valj nano=specifik blev=dokument dok=3 öppen=3:6`. Knapparna under ett svar sorteras inte igen: de använder samma material som svaret.
 
 **Vad Luna får, i den här ordningen:**
 1. Den gemensamma grunden och prompten nedan.

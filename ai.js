@@ -8,6 +8,11 @@
     Då kan OpenAI återanvända början av anropet, och den delen kostar en tiondel.
   * Svarar OpenAI inte, eller kommer JSON tillbaka trasig, görs ett nytt försök. Går det inte heller ger anropet upp.
   * Varje anrop mäts i ai_anrop: funktion, modell, token, tid och studentens slumpade id. Aldrig text.
+  * Felsökning med AI_LOGG i .env:
+      AI_LOGG=1      en rad per anrop i serverns logg: funktion, modell, tänkande, token, tid, och för chatten vad nano valde
+                     och vilket material Luna fick. Ingen text från studenten eller materialet.
+      AI_LOGG=fullt  dessutom hela anropen och svaren i DATA_DIR/ai-logg/<dag>.jsonl. Innehåller studentens frågor
+                     och kursmaterial, så bara för test. Filerna raderas efter 7 dagar.
   * Svar som kan komma igen sparas i ai_cache, per student. Nyckeln innehåller prompten och modellen,
     så en ändrad prompt eller modell ger nya svar.
 */
@@ -18,6 +23,7 @@ const { dag } = require("./db");
 
 const MAPP = path.join(__dirname, "prompts");
 const CACHE_DAGAR = 90; // sparade svar som ingen har hämtat på så här länge städas bort
+const LOGG_DAGAR = 7;    // filerna med AI_LOGG=fullt
 
 const lasta = new Map();
 /* Prompten i prompts/<namn>.md */
@@ -54,8 +60,25 @@ module.exports = function ({ db, CONFIG }) {
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(ms),
     }).catch(() => null);
-    if (!r || !r.ok) throw fel(`OPENAI_${r ? r.status : "NATVERK"}`);
+    if (!r || !r.ok) {
+      /* OpenAI:s egen förklaring, till exempel en modell som inte finns eller ett värde den inte tar emot. Innehåller ingen text från studenten. */
+      const j = r ? await r.json().catch(() => null) : null;
+      const e = fel(`OPENAI_${r ? r.status : "NATVERK"}`);
+      if (j?.error) e.detalj = `${j.error.code || j.error.type || ""}${j.error.param ? ` param=${j.error.param}` : ""} ${String(j.error.message || "").slice(0, 200)}`.trim();
+      throw e;
+    }
     return r.json();
+  }
+
+  /* Felsökning, se AI_LOGG ovan */
+  const loggMapp = path.join(CONFIG.dataDir, "ai-logg");
+  function logg(rad) { if (CONFIG.aiLogg) console.log(`[ai] ${rad}`); }
+  function loggFullt(post) {
+    if (CONFIG.aiLogg !== "fullt") return;
+    fs.mkdirSync(loggMapp, { recursive: true, mode: 0o700 });
+    /* Bilder blir bara sin storlek, så att filen går att läsa */
+    const text = JSON.stringify({ tid: new Date().toISOString(), ...post }, (k, v) => (typeof v === "string" && v.startsWith("data:image/") ? `[bild, ${v.length} tecken]` : v));
+    fs.appendFileSync(path.join(loggMapp, `${dag()}.jsonl`), text + "\n", { mode: 0o600 });
   }
 
   /* Studentens slumpade id i mätningen. Det går inte att räkna ut vem studenten är från id:t,
@@ -110,10 +133,14 @@ module.exports = function ({ db, CONFIG }) {
         const ut = schema ? JSON.parse(text) : text;
         mat({ funktion, modell: inst.modell, uid, usage: j.usage, ms: Date.now() - start, ok: true });
         if (j.status === "incomplete") console.error(`[sf] ai ${funktion} nådde taket för svarslängd`);
+        const u = j.usage || {};
+        logg(`${funktion} ${inst.modell} tänkande=${tank || "-"} in=${u.input_tokens ?? "?"} cache=${u.input_tokens_details?.cached_tokens ?? "?"} ut=${u.output_tokens ?? "?"} tank=${u.output_tokens_details?.reasoning_tokens ?? "?"} ms=${Date.now() - start}${j.status === "incomplete" ? " AVBRUTET" : ""}`);
+        loggFullt({ funktion, anrop: body, svar: ut });
         return ut;
       } catch (e) {
         mat({ funktion, modell: inst.modell, uid, usage: j?.usage, ms: Date.now() - start, ok: false });
-        console.error(`[sf] ai ${funktion} misslyckades forsok=${forsok} ${e.code || e.name}`);
+        console.error(`[sf] ai ${funktion} ${inst.modell} misslyckades forsok=${forsok} ${e.code || e.name}${e.detalj ? ` ${e.detalj}` : ""}`);
+        loggFullt({ funktion, anrop: body, fel: `${e.code || e.name}${e.detalj ? ` ${e.detalj}` : ""}`, svar: j ? utText(j) : null });
         if (forsok === 2) throw e;
       }
     }
@@ -176,9 +203,13 @@ module.exports = function ({ db, CONFIG }) {
 
   function stada() {
     db.prepare("DELETE FROM ai_cache WHERE anvand < ?").run(Date.now() - CACHE_DAGAR * 86400 * 1000);
+    const gammal = dag(new Date(Date.now() - LOGG_DAGAR * 86400 * 1000));
+    for (const f of fs.existsSync(loggMapp) ? fs.readdirSync(loggMapp) : []) {
+      if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f) && f.slice(0, 10) < gammal) fs.rmSync(path.join(loggMapp, f), { force: true });
+    }
   }
   stada();
   setInterval(stada, 24 * 3600 * 1000).unref();
 
-  return { prompt, tudiPrompt, material, ren, post, mat, svar, vektorer, version, cachad, sparat, glom };
+  return { prompt, tudiPrompt, material, ren, post, mat, svar, vektorer, version, cachad, sparat, glom, logg };
 };

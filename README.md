@@ -19,6 +19,15 @@ Hur AI:n används, vilken modell som gör vad och vad som skickas står i `AI-AR
 
 Öppna sedan http://localhost:8788 (eller http://127.0.0.1:8788) i valfri webbläsare. Lokalt på http är inloggningskakan inte `Secure`, eftersom Safari då inte sparar den. På servern sätts `APP_ORIGIN` till en https-adress, och då är kakan `Secure` och heter `__Host-sf`.
 
+## Felsöka AI:n
+
+Servern sparar aldrig text från studenter i loggen. För att se vad som skickas till OpenAI, sätt i `.env`:
+
+* `AI_LOGG=1`: en rad per AI‑anrop i serverns logg (till exempel `journalctl -u studfun-uni`). Modell, tänkande, token, tid, och för chatten vad nano valde (`[ai] valj nano=specifik blev=dokument`) och vilket material Luna fick (`[ai] chatt material typ=dokument [hel text ~4200 token]`). Ingen text.
+* `AI_LOGG=fullt`: dessutom hela anropen och svaren i `DATA_DIR/ai-logg/<dag>.jsonl`. **Innehåller studenternas frågor och kursmaterial.** Bara för test, och filerna raderas efter 7 dagar.
+
+Fel från OpenAI loggas alltid med OpenAI:s förklaring, till exempel `model_not_found param=model`. `npm run kostnad` visar hur många anrop per funktion som misslyckades.
+
 ## Testa
 
 ```bash

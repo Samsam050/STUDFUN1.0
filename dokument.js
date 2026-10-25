@@ -195,7 +195,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf, ai }) {
           break;
         }
         catch (e) {
-          console.error(`[sf] vektorer misslyckades d=${id} forsok=${forsok} ${e.code || e.name}`);
+          console.error(`[sf] dokument misslyckades d=${id} forsok=${forsok} ${e.code || e.name}${e.detalj ? ` ${e.detalj}` : ""}`);
           if (forsok === 3) { db.prepare("UPDATE documents SET status = 'fel' WHERE id = ? AND status = 'bearbetas'").run(id); break; }
           await new Promise(r => setTimeout(r, forsok * 5000));
         }
