@@ -181,3 +181,15 @@ test("taken: en fråga räknas mot chatten, knappen mot sidorna, och nano kostar
   assert.equal(anv("sida"), sida + 1);
   d.close();
 });
+
+test("väljer nano sidan fast frågan gäller hela PDF:en, blir det dokumentet som är öppet", async () => {
+  valjer("sidan");
+  const r = await fraga({ fraga: "Vad är viktigaste i den här pdfen?", sida: { dokId: kort, nr: 1 } });
+  assert.equal(r.json.svar.meta.typ, "chatt");
+  assert.match(inneText(luna()[0].json), /Hela texten i Kort text/);
+  assert.match(nano()[0].json.input[0].content, /"Den här pdf:en" och "den här boken" betyder hela dokumentet som är öppet, aldrig bara sidan\./);
+  oa.anrop.length = 0;
+  valjer("sidan");
+  const sidan = await fraga({ fraga: "Förklara bilden i boken", sida: { dokId: kort, nr: 1 } });
+  assert.equal(sidan.json.svar.meta.typ, "sida", "nämner frågan bilden gäller den sidan");
+});

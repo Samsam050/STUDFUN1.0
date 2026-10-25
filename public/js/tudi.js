@@ -155,6 +155,8 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", doljEtikett =
       h("img", { src: "/bilder/tudi-ansikte.png", alt: "", class: "sf-tudi-ansikte" }),
       h("p", { class: "sf-bubbla sf-bubbla--tanker" }, data.forklara ? "Tudi läser sidan …" : serSidan ? "Tudi läser sidan och letar i ditt material …" : "Tudi letar i ditt material …"));
     lista.append(du, tanker);
+    /* Fältet töms direkt, så att det syns att frågan är skickad. Går den inte fram kommer texten tillbaka. */
+    if (franFalt) falt.value = "";
     /* Allt nytt hamnar sist i samtalet. Det scrollas fram, också när studenten har scrollat upp, till exempel till Förklara den här sidan. */
     du.scrollIntoView({ block: "start" });
     try {
@@ -162,12 +164,12 @@ export function samtal({ kursId, etikett = "Din fråga till Tudi", doljEtikett =
       const r = await api("POST", `/api/kurser/${kursId}/fraga`, { ...extra, ...data });
       const svar = bubbla(r.svar);
       tanker.replaceWith(svar);
-      if (franFalt) falt.value = "";
       meddela.textContent = "Tudi har svarat.";
       foljdKnappar();
       svar.scrollIntoView({ block: "start" });
     } catch (e) {
       du.remove(); tanker.remove();
+      if (franFalt && !falt.value.trim()) falt.value = visas;
       visaFel(e.message, e.status === 429 || e.status === 400 ? null : () => skicka(data, visas, franFalt, utanKontext));
       tomt();
     } finally {

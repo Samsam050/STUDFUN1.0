@@ -43,6 +43,9 @@ const FOLJD = {
   annat: ["Förklara på ett annat sätt", "satt-annat-satt"],
 };
 const TYPER = ["sidan", "sidor", "dokument", "kurs", "tenta", "specifik", "ovrigt"];
+/* Ord som betyder hela dokumentet, och ord som betyder sidan. Används om nano väljer sidan fast frågan gäller hela PDF:en. */
+const HELA_DOKUMENTET = /(?:^|[^\p{L}])(pdf|pdf:en|pdfen|pdf-en|dokument|dokumentet|fil|filen|bok|boken|kapitel|kapitlet|kompendiet|artikel|artikeln|slides|slidesen|föreläsning|föreläsningen)(?![\p{L}])/iu;
+const SIDAN = /(?:^|[^\p{L}])(sida|sidan|bild|bilden|figur|figuren|diagram|diagrammet|tabell|tabellen)(?![\p{L}])/iu;
 const VAL = {
   namn: "val",
   schema: {
@@ -135,6 +138,8 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai, forklara }) {
       let typ = TYPER.includes(ut.typ) ? ut.typ : "specifik";
       const d = dok.find(x => String(x.id) === String(ut.dokument_id).trim()) || (sida && dok.find(x => x.id === sida.dokId)) || (dok.length === 1 ? dok[0] : null);
       const sidor = [...new Set((Array.isArray(ut.sidor) ? ut.sidor : []).filter(n => Number.isInteger(n) && d && n >= 1 && n <= d.sidor))].slice(0, MAX_SIDOR);
+      /* Frågan nämner PDF:en, boken eller dokumentet men inte sidan: den gäller hela dokumentet, vad nano än säger */
+      if (typ === "sidan" && HELA_DOKUMENTET.test(fraga) && !SIDAN.test(fraga)) typ = "dokument";
       if (typ === "sidan" && !sida) typ = "specifik";
       if ((typ === "dokument" && !d) || (typ === "sidor" && !sidor.length)) typ = "specifik";
       return { typ, dokId: d ? d.id : null, sidor };
