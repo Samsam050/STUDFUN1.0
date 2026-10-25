@@ -40,12 +40,13 @@ const AVSNITT = {
     properties: { sidor: { type: "string" }, rubrik: { type: "string" }, sammanfattning: { type: "string" }, begrepp: { type: "array", items: { type: "string" } } },
   },
 };
+const TYPER = ["tenta", "kursplan", "kursbok", "slides", "artikel", "anteckningar", "annat"];
 const HELA = {
   namn: "dokument",
   schema: {
-    type: "object", additionalProperties: false, required: ["kort", "sammanfattning", "delar"],
+    type: "object", additionalProperties: false, required: ["typ", "kort", "sammanfattning", "delar"],
     properties: {
-      kort: { type: "string" }, sammanfattning: { type: "string" },
+      typ: { type: "string", enum: TYPER }, kort: { type: "string" }, sammanfattning: { type: "string" },
       delar: { type: "array", items: { type: "object", additionalProperties: false, required: ["sidor", "handlar_om"],
         properties: { sidor: { type: "string" }, handlar_om: { type: "string" } } } },
     },
@@ -241,7 +242,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf, ai }) {
         db.prepare("DELETE FROM avsnitt WHERE document_id = ?").run(id);
         db.prepare(`INSERT INTO avsnitt (user_id, document_id, fran, till, rubrik, sammanfattning, begrepp)
           SELECT user_id, ?, fran, till, rubrik, sammanfattning, begrepp FROM avsnitt WHERE document_id = ?`).run(id, tv.id);
-        db.prepare("UPDATE documents SET kort = ?, sammanfattning = ?, delar = ? WHERE id = ?").run(tv.kort, tv.sammanfattning, tv.delar, id);
+        db.prepare("UPDATE documents SET typ = ?, kort = ?, sammanfattning = ?, delar = ? WHERE id = ?").run(tv.typ, tv.kort, tv.sammanfattning, tv.delar, id);
       });
       console.log(`[sf] sammanfattning återanvänd d=${id} fran=${tv.id}`);
       return;
@@ -281,8 +282,8 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf, ai }) {
     const delar = (Array.isArray(ut.delar) ? ut.delar : [])
       .map(x => ({ sidor: String(x.sidor || "").trim().slice(0, 20), handlar_om: String(x.handlar_om || "").trim().slice(0, 300) }))
       .filter(x => x.sidor && x.handlar_om).slice(0, 40);
-    db.prepare("UPDATE documents SET kort = ?, sammanfattning = ?, delar = ? WHERE id = ?")
-      .run(String(ut.kort || "").trim().slice(0, 300), String(ut.sammanfattning || "").trim().slice(0, 3000), JSON.stringify(delar), id);
+    db.prepare("UPDATE documents SET typ = ?, kort = ?, sammanfattning = ?, delar = ? WHERE id = ?")
+      .run(TYPER.includes(ut.typ) ? ut.typ : "annat", String(ut.kort || "").trim().slice(0, 300), String(ut.sammanfattning || "").trim().slice(0, 3000), JSON.stringify(delar), id);
     console.log(`[sf] sammanfattning klar d=${id} avsnitt=${rader.length}`);
   }
 
@@ -300,3 +301,6 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf, ai }) {
 
 module.exports.dela = dela;
 module.exports.avsnitt = avsnitt;
+/* Vad dokumentet är. Dokument från före typen gissas från titeln. */
+module.exports.dokTyp = d => d.typ
+  || (/tenta|tentamen|exam/i.test(d.titel) ? "tenta" : /kursplan|syllabus|studiehandledning|kurs-?pm/i.test(d.titel) ? "kursplan" : "annat");

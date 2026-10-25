@@ -1,5 +1,6 @@
 /*
   Förklara den här sidan, knapparna för att få samma sida förklarad på ett annat sätt, och ett ord.
+  Knappen Förklara den här sidan går genom chatten (tudi.js), så att förklaringen hamnar i samtalet i tidsordning.
 
   Tudi får dokumentets titel och sammanfattning (lika för alla sidor, därför först) och sedan sidans text.
   En bild av sidan skickas bara när appen säger att den behövs: sidan har under 400 tecken text,
@@ -54,20 +55,19 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
     return bild;
   }
 
-  /* satt: ett av sätten att förklara. forra: nyckeln till förklaringen studenten vill ha på ett annat sätt.
-     bild: en bild av sidan, bara när appens regel säger det. */
-  rutt("POST", "/api/dokument/:id/sidor/:nr/forklara", async ctx => {
-    const uid = ctx.user.id, nr = ctx.params.nr;
-    const d = dokument(uid, ctx.params.id);
+  /* Förklarar sidan nr i dokumentet d. Används av adressen nedan och av chatten.
+     satt   ett av sätten att förklara, med forra: nyckeln till förklaringen studenten vill ha på ett annat sätt
+     bild   en bild av sidan, bara när appens regel säger det
+     kvot   false när frågan redan har räknats mot chattens tak
+     Returnerar { text, kallor, sida, satt, bild, nyckel } */
+  async function forklaraSida({ uid, d, nr, satt, forraNyckel, bild = null, kvot = true }) {
     if (nr < 1 || nr > d.sidor) throw new Fel(404, "Sidan finns inte.");
-    const { satt } = ctx.body;
-    if (satt !== undefined && !SATT[satt]) throw new Fel(400, "Det valet finns inte.");
+    if (satt !== undefined && satt !== null && !SATT[satt]) throw new Fel(400, "Det valet finns inte.");
     let forra = null;
     if (satt) {
-      forra = ai.sparat(uid, ctx.body.forra);
+      forra = ai.sparat(uid, forraNyckel);
       if (!forra || !forra.typ.startsWith("sida:") || forra.dokId !== d.id || forra.svar.sida !== nr) throw new Fel(400, "Tryck på Förklara den här sidan först.");
     }
-    const bild = lasBild(ctx.body.bild);
     if (!CONFIG.openaiKey) throw new Fel(503, "Tudi kunde inte förklara sidan just nu.");
 
     /* "Förklara på ett annat sätt" andra gången i rad på samma sida: Tudi får tänka lite mer */
@@ -81,7 +81,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
         uid, typ, dokId: d.id,
         nyckel: [ai.version("sida", effort, ...prompter), d.id, nr, !!bild, text, d.sammanfattning, forra ? forra.svar.text : null],
       }, async () => {
-        if (!forbruka(db, uid, "sida", 1, SIDA_PER_DAG)) {
+        if (kvot && !forbruka(db, uid, "sida", 1, SIDA_PER_DAG)) {
           throw new Fel(429, "Du har bett Tudi förklara dagens sidor. Det går igen i morgon från klockan 06.00. Sidor Tudi redan har förklarat kan du se igen.");
         }
         const sidan = `Sidan studenten har öppen: sida ${nr} av ${d.sidor}.\n\n${ai.material(text || "Sidan har ingen text.")}`;
@@ -103,6 +103,12 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
       throw new Fel(502, "Tudi kunde inte förklara sidan just nu. Försök igen om en stund.");
     }
     return { text: r.svar.text, kallor: r.svar.kallor, sida: nr, satt: satt || null, bild: !!bild, nyckel: r.nyckel };
+  }
+
+  /* Samma förklaring utan chatten. Appen använder chatten, så att förklaringen hamnar i samtalet. */
+  rutt("POST", "/api/dokument/:id/sidor/:nr/forklara", async ctx => {
+    const { satt, forra, bild } = ctx.body;
+    return forklaraSida({ uid: ctx.user.id, d: dokument(ctx.user.id, ctx.params.id), nr: ctx.params.nr, satt, forraNyckel: forra, bild: lasBild(bild) });
   }, { maxBody: 3 * 1024 * 1024 });
 
   /* Förklara eller ge exempel på ett ord i visaren. Sparas inte i chatten. */
@@ -142,4 +148,5 @@ module.exports = function ({ db, CONFIG, Fel, rutt, ai }) {
     }
     return { svar: r.svar.text };
   });
+  return { forklaraSida, lasBild, SATT };
 };

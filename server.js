@@ -44,7 +44,10 @@ const tank = (namn, standard) => process.env[namn] ?? standard;
 CONFIG.ai = {
   ord: { modell: modell("MODEL_ORD", "gpt-6-luna"), effort: tank("EFFORT_ORD", "none"), maxUt: 150 },
   sida: { modell: modell("MODEL_SIDA", "gpt-6-luna"), effort: tank("EFFORT_SIDA", "none"), igen: tank("EFFORT_SIDA_IGEN", "low"), maxUt: 600 },
-  chatt: { modell: modell("MODEL_CHATT", "gpt-6-luna"), effort: tank("EFFORT_CHATT", "low"), maxUt: 800 },
+  valj: { modell: modell("MODEL_VALJ", "gpt-5-nano"), effort: tank("EFFORT_VALJ", "minimal"), maxUt: 200 },
+  chatt: { modell: modell("MODEL_CHATT", "gpt-6-luna"), effort: tank("EFFORT_CHATT", "low"), maxUt: 800,
+    /* Ett dokument på högst så många token skickas helt till Luna. Längre dokument skickas som sammanfattningar av avsnitten. */
+    maxHela: Number(process.env.MAX_TOKEN_HELA) || 15000 },
   sammanfattning: { modell: modell("MODEL_SAMMANFATTNING", "gpt-5-nano"), effort: tank("EFFORT_SAMMANFATTNING", "minimal"), maxUt: 400 },
   borja: { modell: modell("MODEL_BORJA", "gpt-6-luna"), effort: tank("EFFORT_BORJA", "none"), maxUt: 600 },
   ova: { modell: modell("MODEL_OVA", "gpt-6-luna"), effort: tank("EFFORT_OVA", "low"), maxUt: 2000 },
@@ -146,8 +149,8 @@ delar.konto = konto;
 require("./kurser")(delar);
 require("./dokument")(delar);
 require("./upplasning")(delar);
+delar.forklara = require("./forklara")(delar);
 require("./tudi")(delar);
-require("./forklara")(delar);
 require("./borja")(delar);
 require("./ova")(delar);
 require("./nasta")(delar);

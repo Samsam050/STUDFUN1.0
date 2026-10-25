@@ -55,8 +55,9 @@ const inneText = json => json.input.slice(1).map(m => (Array.isArray(m.content) 
 /* Standardsvar från Responses API, efter vilket JSON-schema anropet ber om */
 function responsSvar(json) {
   const format = json.text?.format?.name;
+  if (format === "val") return { typ: "specifik", dokument_id: "", sidor: [] };
   if (format === "avsnitt") return { sidor: "1–1", rubrik: "Avtal", sammanfattning: "Avsnittet handlar om anbud och accept.", begrepp: ["anbud", "accept"] };
-  if (format === "dokument") return { kort: "Dokumentet handlar om avtal.", sammanfattning: "Om hur avtal sluts med anbud och accept.", delar: [{ sidor: "1–2", handlar_om: "Anbud och accept." }] };
+  if (format === "dokument") return { typ: "kursbok", kort: "Dokumentet handlar om avtal.", sammanfattning: "Om hur avtal sluts med anbud och accept.", delar: [{ sidor: "1–2", handlar_om: "Anbud och accept." }] };
   const sidor = [...inneText(json).matchAll(/\[[^\]\n]*, s\. (\d+)\]/g)].map(m => Number(m[1]));
   const sida = i => sidor[i % sidor.length] || 1;
   if (format === "quiz") return { fragor: [0, 1, 2, 3, 4, 5, 6].map(i => ({ typ: "flerval", fraga: `Fråga ${i}?`, alternativ: ["Rätt", "Fel ett", "Fel två", "Fel tre"], ratt: 0, forklaring: "För att.", sida: sida(i) }))
@@ -73,10 +74,11 @@ function responsSvar(json) {
 /* En låtsas-OpenAI. Sparar anropen så att testerna kan titta på dem.
    Vektorerna räknas fram ur bokstäverna, så att liknande texter får liknande vektorer.
    svar(json) bestämmer vad Responses API svarar (text eller objekt). Returnerar den undefined gäller responsSvar.
+   felOm(url, json) = true ger 500 på de anrop den väljer.
    fel = n ger 500 på de n nästa anropen. Servern försöker en gång till, så 2 får ett anrop att misslyckas helt. */
 function falskOpenAI() {
   const http = require("http");
-  const oa = { anrop: [], fel: 0, svar: null };
+  const oa = { anrop: [], fel: 0, svar: null, felOm: null };
   const vektor = t => { const v = Array(8).fill(0.01); for (const c of String(t).toLowerCase()) v[c.charCodeAt(0) % 8] += 1; return v; };
   const server = http.createServer((req, res) => {
     const delar = [];
@@ -91,6 +93,7 @@ function falskOpenAI() {
       }
       const json = JSON.parse(ra.toString() || "{}");
       oa.anrop.push({ url: req.url, auth: req.headers.authorization, json });
+      if (oa.felOm && oa.felOm(req.url, json)) { res.writeHead(500); return res.end(); }
       if (req.url === "/v1/audio/speech") {
         res.writeHead(200, { "Content-Type": "audio/mpeg" });
         return res.end(Buffer.from("ID3 låtsasljud för " + json.voice));
