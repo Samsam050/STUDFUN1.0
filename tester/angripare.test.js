@@ -9,7 +9,7 @@ const { DatabaseSync } = require("node:sqlite");
 const { startaServer, falskOpenAI } = require("./hjalp");
 
 const ROT = path.join(__dirname, "..");
-const OPPNA = ["POST /api/konto", "POST /api/logga-in", "POST /api/logga-ut"];
+const OPPNA = ["POST /api/konto", "POST /api/logga-in", "POST /api/logga-ut", "GET /api/konto/krav"];
 
 /* Alla rutt("METOD", "/api/...") i serverns filer. ${typ} blir quiz och flashcards, :namn blir 1. */
 function allaAdresser() {

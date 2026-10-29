@@ -30,3 +30,8 @@ Det här behöver StudFun 1.0 på servern. Läs det tillsammans med Del A i `STU
 * En PDF får vara högst 50 MB, och en student kan ha högst 20 filer. Räkna med upp till 1 GB per student i värsta fall. Mät den första veckan.
 * Säkerhetskopian måste ta med både `studfun.db` och `pdf/`. Mappen `upplasning/` är sparat ljud som kan hämtas igen, och behöver inte säkerhetskopieras.
 * CSP:n tillåter `wasm-unsafe-eval`. pdf.js behöver det för att visa vissa bildformat i PDF:er. Det tillåter inte `eval`.
+
+## Betan
+
+* Sätt `INBJUDNINGSKOD` i tjänstens miljöfil. Då krävs koden för att skapa konto, och fältet "Inbjudningskod" visas under Skapa konto. Utan den kan vem som helst som hittar den öppna adressen skapa konto. Välj en lång kod, till exempel fyra ord, och ge den bara till testarna. Felaktiga koder räknas mot gränsen för nya konton.
+* Sätt `APP_ORIGIN` till exakt den adress testarna öppnar, till exempel `https://haytham-hp-probook-430-g3.tail381948.ts.net:8443`, och `TRUST_PROXY=1` bakom Funnel.

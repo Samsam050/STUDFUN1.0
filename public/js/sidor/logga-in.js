@@ -35,6 +35,15 @@ export default function (main) {
         h("a", { href: "/integritet.html", target: "_blank", rel: "noopener" }, "hur StudFun hanterar mina uppgifter"))),
     godkannFel);
 
+  /* Inbjudningskoden visas bara när servern kräver den, i betan */
+  const kod = h("input", { id: "f-kod", class: "sf-falt", type: "text", autocomplete: "off", spellcheck: "false", "aria-describedby": "f-kod-fel" });
+  const kodFel = h("span", { id: "f-kod-fel", class: "sf-faltfel" });
+  const kodRad = h("div", { class: "sf-falt-grupp", hidden: true },
+    h("label", { for: "f-kod" }, "Inbjudningskod"), kod,
+    h("span", { class: "sf-hjalp" }, "StudFun är i beta. Du får koden av den som bjöd in dig."), kodFel);
+  let kodKravs = false;
+  fetch("/api/konto/krav").then(r => r.json()).then(j => { kodKravs = !!j.inbjudningskod; uppdatera(); }, () => {});
+
   const skickaKnapp = h("button", { type: "submit", class: "sf-btn sf-btn--primar sf-btn--bred" });
   const glomt = h("p", { class: "sf-hjalp" }, "Har du glömt lösenordet? Att återställa det själv kommer snart.");
 
@@ -44,6 +53,7 @@ export default function (main) {
     h("div", { class: "sf-falt-grupp" },
       h("div", { class: "sf-falt-rad" }, h("label", { for: "f-losen" }, "Lösenord"), visaKnapp),
       losen, losenHjalp),
+    kodRad,
     godkannRad,
     h("div", { class: "sf-inlogg-knappar" }, skickaKnapp, glomt));
   form.addEventListener("submit", skicka);
@@ -59,7 +69,7 @@ export default function (main) {
     history.replaceState(null, "", ny ? "/skapa-konto" : "/logga-in");
     document.title = (ny ? "Skapa konto" : "Logga in") + " · StudFun";
     toppFel.replaceChildren();
-    faltFel(mejl, mejlFel, ""); faltFel(godkann, godkannFel, "");
+    faltFel(mejl, mejlFel, ""); faltFel(godkann, godkannFel, ""); faltFel(kod, kodFel, "");
     losen.setAttribute("aria-invalid", "false");
     uppdatera();
   }
@@ -77,6 +87,7 @@ export default function (main) {
       losenHjalp.textContent = ny ? "Minst 10 tecken. Du kan använda mellanslag." : "Skriv lösenordet du valde när du skapade kontot.";
     }
     godkannRad.hidden = !ny;
+    kodRad.hidden = !(ny && kodKravs);
     glomt.hidden = ny;
     skickaKnapp.disabled = laddar;
     skickaKnapp.textContent = laddar ? (ny ? "Skapar konto …" : "Loggar in …") : (ny ? "Skapa konto" : "Logga in");
@@ -93,16 +104,18 @@ export default function (main) {
     if (!ny && !losen.value) losenText = "Skriv ditt lösenord.";
     losen.setAttribute("aria-invalid", losenText ? "true" : "false");
     if (losenText) { losenHjalp.className = "sf-faltfel"; losenHjalp.replaceChildren(ikon("fel", 20), losenText); }
+    const kodText = ny && kodKravs && !kod.value.trim() ? "Skriv inbjudningskoden." : "";
+    faltFel(kod, kodFel, kodText);
     const godkText = ny && !godkann.checked ? "Kryssa i rutan för att kunna skapa ett konto." : "";
     faltFel(godkann, godkannFel, godkText);
     uppdatera();
-    const forsta = [mejlText && mejl, losenText && losen, godkText && godkann].find(Boolean);
+    const forsta = [mejlText && mejl, losenText && losen, kodText && kod, godkText && godkann].find(Boolean);
     if (forsta) return forsta.focus();
 
     uppdatera(true);
     try {
       app.jag = await api("POST", ny ? "/api/konto" : "/api/logga-in",
-        ny ? { mejl: m, losen: losen.value, godkant: true } : { mejl: m, losen: losen.value });
+        ny ? { mejl: m, losen: losen.value, godkant: true, kod: kod.value.trim() } : { mejl: m, losen: losen.value });
       /* Kontrollera att webbläsaren sparade inloggningen, annars hamnar studenten tillbaka här utan förklaring */
       const sparad = await fetch("/api/jag").then(r => r.ok, () => false);
       if (!sparad) {

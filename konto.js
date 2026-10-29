@@ -42,6 +42,8 @@ async function stammer(losen, lagrad) {
 }
 
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
+/* Jämför utan att tiden avslöjar hur många tecken som stämde */
+const lika = (a, b) => crypto.timingSafeEqual(Buffer.from(sha(a)), Buffer.from(sha(b)));
 const mejlOk = m => typeof m === "string" && m.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m);
 
 module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
@@ -83,6 +85,9 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
     return { typsnitt: s.typsnitt, rost: s.rost || ROSTER[0], tempo: s.tempo };
   }
 
+  /* Skapa konto visar fältet för inbjudningskod bara när betan kräver en */
+  rutt("GET", "/api/konto/krav", () => ({ inbjudningskod: !!CONFIG.inbjudningskod }), { oppen: true });
+
   rutt("POST", "/api/konto", async ctx => {
     const mejl = String(ctx.body.mejl || "").trim().toLowerCase();
     const losen = ctx.body.losen;
@@ -91,7 +96,10 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf }) {
     if (typeof losen !== "string" || losen.length < LOSEN_MIN) throw new Fel(400, "Lösenordet behöver minst 10 tecken.");
     if (losen.length > LOSEN_MAX) throw new Fel(400, "Lösenordet får vara högst 200 tecken.");
     if (antal("ny:" + ctx.ip) >= MAX_NYA_PER_IP) throw new Fel(429, "För många nya konton på kort tid. Vänta 15 minuter och försök igen.");
-    notera("ny:" + ctx.ip);
+    notera("ny:" + ctx.ip); // räknas före koden, så att gissade koder också stoppas av gränsen
+    if (CONFIG.inbjudningskod && !lika(String(ctx.body.kod || "").trim(), CONFIG.inbjudningskod)) {
+      throw new Fel(403, "Inbjudningskoden stämmer inte. Du får koden av den som bjöd in dig till betan.");
+    }
     const hash = await hasha(losen);
     const nu = Date.now();
     let id;

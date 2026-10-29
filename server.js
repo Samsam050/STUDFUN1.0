@@ -12,6 +12,7 @@
                                  Sätts alltid på servern. Utan den godtas bara localhost, 127.0.0.1 och [::1].
     DATA_DIR=./data              databasen och PDF:erna. Ska bara kunna läsas av StudFuns användare.
     TRUST_PROXY=1                läs studentens adress från X-Forwarded-For (bara bakom egen proxy)
+    INBJUDNINGSKOD=...           krävs för att skapa konto, om den är satt. Välj en lång kod, till exempel fyra ord.
     OPENAI_API_KEY=sk-...        stannar på servern. Utan den blir uppladdade filer aldrig klara för Tudi.
     OPENAI_BASE=https://api.openai.com
     MODEL_*, EFFORT_*, TTS_MOTOR  modell och tänkande för varje AI-funktion. Se .env.example.
@@ -33,6 +34,8 @@ const CONFIG = {
   tillatna: process.env.APP_ORIGIN ? [process.env.APP_ORIGIN] : ["localhost", "127.0.0.1", "[::1]"].map(v => `http://${v}:${PORT}`),
   dataDir: process.env.DATA_DIR || path.join(__dirname, "data"),
   trustProxy: process.env.TRUST_PROXY === "1",
+  /* Satt i betan: bara den som har koden kan skapa konto, så att en öppen adress inte ger konton till vem som helst */
+  inbjudningskod: process.env.INBJUDNINGSKOD || "",
   openaiKey: process.env.OPENAI_API_KEY || "",
   openaiBase: process.env.OPENAI_BASE || "https://api.openai.com",
   vektorDim: 512, // räcker för sökningen och gör den lätt nog för en liten server

@@ -163,3 +163,20 @@ test("loggen innehåller aldrig mejl eller lösenord", async () => {
   const logg = s.logg();
   for (const ord of ["loggtest@exempel.se", "loggtest losenord", "fel i loggtest", "@exempel.se"]) assert.ok(!logg.includes(ord), ord);
 });
+
+test("i betan krävs inbjudningskoden för att skapa konto, och gissningar stoppas", async () => {
+  const beta = await startaServer({ INBJUDNINGSKOD: "blå häst sjunger högt" });
+  try {
+    assert.deepEqual((await beta.anrop("GET", "/api/konto/krav")).json, { inbjudningskod: true });
+    const konto = kod => beta.anrop("POST", "/api/konto", { data: { mejl: `k${Math.random()}@exempel.se`, losen: "ett langt losenord", godkant: true, kod } });
+    for (const kod of [undefined, "", "blå häst", "BLÅ HÄST SJUNGER HÖGT", 42]) assert.equal((await konto(kod)).status, 403, String(kod));
+    const ok = await konto("  blå häst sjunger högt ");
+    assert.equal(ok.status, 201);
+    assert.equal((await beta.anrop("GET", "/api/jag", { kaka: ok.kaka })).status, 200);
+    assert.ok(!beta.logg().includes("häst"), "koden hamnar aldrig i loggen");
+    const statusar = [];
+    for (let i = 0; i < 50; i++) statusar.push((await konto(`gissning ${i}`)).status);
+    assert.equal(statusar.at(-1), 429, "gissade koder räknas mot gränsen för nya konton");
+  } finally { beta.stang(); }
+  assert.deepEqual((await s.anrop("GET", "/api/konto/krav")).json, { inbjudningskod: false }, "utan INBJUDNINGSKOD krävs ingen kod");
+});
