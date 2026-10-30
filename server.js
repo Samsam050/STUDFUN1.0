@@ -52,7 +52,7 @@ CONFIG.ai = {
   chatt: { modell: modell("MODEL_CHATT", "gpt-6-luna"), effort: tank("EFFORT_CHATT", "low"), maxUt: 800,
     /* Ett dokument på högst så många token skickas helt till Luna. Längre dokument skickas som sammanfattningar av avsnitten. */
     maxHela: Number(process.env.MAX_TOKEN_HELA) || 15000 },
-  sammanfattning: { modell: modell("MODEL_SAMMANFATTNING", "gpt-5-nano"), effort: tank("EFFORT_SAMMANFATTNING", "minimal"), maxUt: 400 },
+  sammanfattning: { modell: modell("MODEL_SAMMANFATTNING", "gpt-5-nano"), effort: tank("EFFORT_SAMMANFATTNING", "minimal"), maxUt: 1500 }, // nano räknar sitt tänkande i taket, 400 räckte inte för 120 ord och begreppen
   borja: { modell: modell("MODEL_BORJA", "gpt-6-luna"), effort: tank("EFFORT_BORJA", "none"), maxUt: 600 },
   ova: { modell: modell("MODEL_OVA", "gpt-6-luna"), effort: tank("EFFORT_OVA", "low"), maxUt: 2000 },
   ratta: { modell: modell("MODEL_RATTA", "gpt-6-luna"), effort: tank("EFFORT_RATTA", "low"), maxUt: 150 },
@@ -211,12 +211,22 @@ async function statisk(req, res, url) {
   res.end(req.method === "HEAD" ? undefined : innehall);
 }
 
+/* För övervakningen: "ok" när databasen svarar, datamappen går att skriva i och OpenAI-nyckeln finns.
+   Ingenting om användare, och inga detaljer om vad som är fel. */
+function halsa(res) {
+  let ok = !!CONFIG.openaiKey;
+  try { db.prepare("SELECT 1").get(); fs.accessSync(CONFIG.dataDir, fs.constants.W_OK); } catch { ok = false; }
+  res.writeHead(ok ? 200 : 503, { ...SAKERHET, "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+  res.end(ok ? "ok" : "fel");
+}
+
 const server = http.createServer(async (req, res) => {
   let url;
   try { url = new URL(req.url, "http://x"); decodeURIComponent(url.pathname); }
   catch { res.writeHead(400, SAKERHET); return res.end(); }
   if (url.pathname.startsWith("/api/")) return api(req, res, url);
   if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, SAKERHET); return res.end(); }
+  if (url.pathname === "/health") return halsa(res);
   return statisk(req, res, url);
 });
 server.requestTimeout = 10 * 60_000; // en PDF på 50 MB över en långsam uppkoppling

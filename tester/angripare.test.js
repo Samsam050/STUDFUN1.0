@@ -134,3 +134,16 @@ test("radera kontot efter att ha använt allt: inget av studentens data finns kv
   }
   assert.equal((await s.anrop("GET", "/api/jag", { kaka })).status, 401);
 });
+
+test("/health svarar ok bara när databasen, datamappen och nyckeln finns, och visar inget om användare", async () => {
+  const r = await s.anrop("GET", "/health");
+  assert.equal(r.status, 200);
+  assert.equal(r.text, "ok");
+  assert.match(r.headers.get("content-type"), /^text\/plain/);
+  const utanNyckel = await startaServer({ OPENAI_API_KEY: "" });
+  try {
+    const fel = await utanNyckel.anrop("GET", "/health");
+    assert.equal(fel.status, 503);
+    assert.equal(fel.text, "fel");
+  } finally { utanNyckel.stang(); }
+});

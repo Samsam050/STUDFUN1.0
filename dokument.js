@@ -273,7 +273,7 @@ module.exports = function ({ db, CONFIG, Fel, rutt, raderaPdf, ai }) {
 
     const rader = db.prepare("SELECT fran, till, rubrik, sammanfattning, begrepp FROM avsnitt WHERE document_id = ? ORDER BY fran").all(id);
     const ut = await ai.svar({
-      funktion: "sammanfattning", uid: d.user_id, schema: HELA, maxUt: 500,
+      funktion: "sammanfattning", uid: d.user_id, schema: HELA, maxUt: 2500,
       system: ai.prompt("sammanfatta-dokument"),
       inne: [{ role: "user", content: `Dokumentet har ${d.sidor} sidor.\n\n${ai.material(`Dokument: ${d.titel}\n\n${JSON.stringify(rader.map(r => ({
         sidor: `${r.fran}–${r.till}`, rubrik: r.rubrik, sammanfattning: r.sammanfattning, begrepp: JSON.parse(r.begrepp),

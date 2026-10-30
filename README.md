@@ -57,7 +57,7 @@ Testerna startar en egen server med en tom datamapp och provar också det som sk
 | `AI-ARKITEKTUR.md` | Hur AI:n används: modeller, vad som skickas och prompterna. |
 | `nasta.js` | Nästa steg på startsidan, och repetition av det studenten svarade fel på. En enkel regel, ingen AI. |
 | `public/` | Appen. `tokens.css` har designens variabler, `app.css` komponenterna och `js/` sidorna. |
-| `public/vendor/pdfjs-6.4.299/` | pdf.js från npm (`pdfjs-dist`), utan delen som kör JavaScript i PDF:er. Byt hela mappen när en ny version kommer. |
+| `public/vendor/pdfjs-6.4.299-legacy/` | pdf.js från npm (`pdfjs-dist`), legacy-bygget så att äldre Safari fungerar, utan delen som kör JavaScript i PDF:er. Byt hela mappen och dess namn när en ny version kommer, annars använder webbläsare gamla filer ur cachen. |
 | `tester/` | Testerna, ett test per steg. |
 | `SERVER-KRAV.md` | Det servern behöver, till sessionen för Del A. |
 | `DATABAS.md` | Varje tabell och fält, och varför det behövs. |

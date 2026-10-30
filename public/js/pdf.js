@@ -1,9 +1,22 @@
 /* pdf.js, lokalt i vendor. Laddas bara på sidor som behöver den.
-   isEvalSupported: false gör att pdf.js aldrig kör kod som byggs ur dokumentet. */
-const BAS = "/vendor/pdfjs-6.4.299/";
+   isEvalSupported: false gör att pdf.js aldrig kör kod som byggs ur dokumentet.
+   Det är pdf.js legacy-bygge, som har ersättare för nya funktioner som äldre Safari saknar. */
+const BAS = "/vendor/pdfjs-6.4.299-legacy/"; // nytt mappnamn när filerna byts, så att ingen webbläsare använder gamla filer ur cachen
+
+/* Äldre Safari (före 26) kan inte loopa över en ReadableStream med for await, och pdf.js getTextContent gör det.
+   Legacy-bygget har ingen ersättare för just den. Läggs till precis innan en PDF öppnas, och påverkar inte webbläsare som redan kan. */
+function ersattStromLoop() {
+  if (typeof ReadableStream === "undefined" || ReadableStream.prototype[Symbol.asyncIterator]) return;
+  ReadableStream.prototype[Symbol.asyncIterator] = async function* () {
+    const r = this.getReader();
+    try { for (;;) { const { done, value } = await r.read(); if (done) return; yield value; } }
+    finally { r.releaseLock(); }
+  };
+}
 let pdfjs;
 
 export async function oppnaPdf(data) {
+  ersattStromLoop();
   if (!pdfjs) {
     pdfjs = await import(BAS + "pdf.min.mjs");
     pdfjs.GlobalWorkerOptions.workerSrc = BAS + "pdf.worker.min.mjs";
